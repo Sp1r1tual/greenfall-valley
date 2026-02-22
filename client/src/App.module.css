@@ -1,0 +1,395 @@
+.canvasWrapper {
+  position: fixed;
+  inset: 0;
+  background: #3a8f2a;
+  overflow: hidden;
+}
+
+.canvasWrapper canvas {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+  cursor: grab;
+}
+
+.ui {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  font-family: "Arial", sans-serif;
+  z-index: 10;
+}
+
+.ui > * {
+  pointer-events: auto;
+}
+
+.stats {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  background: linear-gradient(135deg, #a29bfe 0%, #6c5ce7 100%);
+  padding: 10px 18px;
+  border-radius: 12px;
+  color: white;
+  font-weight: bold;
+  font-size: 18px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  backdrop-filter: blur(4px);
+}
+
+.coinIcon {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  background: #f39c12;
+  border-radius: 50%;
+  border: 2px solid #e67e22;
+  flex-shrink: 0;
+}
+
+.infoBar {
+  position: absolute;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(6px);
+  color: #fff;
+  font-size: 14px;
+  font-weight: bold;
+  padding: 8px 20px;
+  border-radius: 20px;
+  white-space: nowrap;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+  pointer-events: none;
+}
+
+.zoomIndicator {
+  position: absolute;
+  bottom: 24px;
+  left: 16px;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(6px);
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 12px;
+  font-weight: bold;
+  padding: 6px 12px;
+  border-radius: 10px;
+  pointer-events: none;
+  font-family: monospace;
+}
+
+.shopWrapper {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.shopToggle {
+  background: linear-gradient(135deg, #ffeaa7 0%, #fdcb6e 100%);
+  border: none;
+  border-radius: 12px;
+  padding: 10px 18px;
+  font-size: 15px;
+  font-weight: bold;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  transition: transform 0.15s;
+  color: #2d3436;
+}
+
+.shopToggle:hover {
+  transform: translateY(-2px);
+}
+
+.shop {
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(8px);
+  border-radius: 16px;
+  padding: 14px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 340px;
+  animation: slideDown 0.2s ease;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.shopTitle {
+  margin: 0;
+  text-align: center;
+  color: #2d3436;
+  font-size: 16px;
+  font-weight: bold;
+}
+
+.shopItems {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+
+.shopItem {
+  background: white;
+  padding: 8px 12px;
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  min-width: 95px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+  transition: transform 0.15s;
+}
+
+.shopItem:hover {
+  transform: scale(1.04);
+}
+
+.shopItemIcon {
+  font-size: 26px;
+}
+.shopItemName {
+  font-weight: bold;
+  color: #2d3436;
+  font-size: 12px;
+}
+.shopItemPrice {
+  color: #f39c12;
+  font-weight: bold;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+.shopItemStock {
+  color: #95a5a6;
+  font-size: 11px;
+}
+.shopItemSize {
+  color: #7f8c8d;
+  font-size: 10px;
+  font-style: italic;
+}
+
+.shopItemBtn {
+  padding: 5px 10px;
+  font-size: 12px;
+  margin-top: 3px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: bold;
+  background: linear-gradient(135deg, #74b9ff 0%, #0984e3 100%);
+  color: white;
+  transition: all 0.15s;
+}
+
+.shopItemBtn:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+.shopItemBtn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.toolbar {
+  position: absolute;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(10px);
+  padding: 10px 14px;
+  border-radius: 20px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.35);
+}
+
+.btn {
+  padding: 10px 18px;
+  font-size: 14px;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: all 0.2s;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+  white-space: nowrap;
+}
+
+.btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+}
+.btn:active {
+  transform: translateY(0);
+}
+
+.btnActive {
+  outline: 3px solid rgba(255, 255, 255, 0.7);
+  outline-offset: 2px;
+}
+
+.btnGrass {
+  background: linear-gradient(135deg, #a8e063 0%, #56ab2f 100%);
+  color: white;
+}
+.btnBed {
+  background: linear-gradient(135deg, #d4a574 0%, #8b6f47 100%);
+  color: white;
+}
+.btnTree {
+  background: linear-gradient(135deg, #74b9ff 0%, #0984e3 100%);
+  color: white;
+}
+.btnBarn {
+  background: linear-gradient(135deg, #fdcb6e 0%, #e17055 100%);
+  color: white;
+}
+.btnMove {
+  background: linear-gradient(135deg, #a29bfe 0%, #6c5ce7 100%);
+  color: white;
+}
+.btnClear {
+  background: linear-gradient(135deg, #ff7675 0%, #d63031 100%);
+  color: white;
+}
+
+.btnEmpty {
+  opacity: 0.45;
+  filter: grayscale(60%);
+}
+
+.btnEmpty:hover {
+  opacity: 0.55;
+}
+
+.btnWalk {
+  background: linear-gradient(135deg, #b2bec3 0%, #636e72 100%);
+  color: white;
+}
+
+.dragCursor {
+  position: fixed;
+  pointer-events: none;
+  z-index: 99999;
+  font-size: 40px;
+  line-height: 1;
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.5));
+  user-select: none;
+}
+
+/* CropPopup overlay */
+.popupOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9000;
+}
+
+.popup {
+  position: fixed;
+  z-index: 9001;
+  width: 224px;
+  background: rgba(22, 38, 12, 0.97);
+  border: 2px solid rgba(107, 201, 67, 0.65);
+  border-radius: 14px;
+  padding: 10px 12px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(8px);
+  font-family: sans-serif;
+}
+
+.popupArrow {
+  position: absolute;
+  right: -11px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 0;
+  height: 0;
+  border-top: 9px solid transparent;
+  border-bottom: 9px solid transparent;
+  border-left: 11px solid rgba(107, 201, 67, 0.65);
+}
+
+.popupHint {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.5);
+  text-align: center;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+}
+
+.popupList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.cropBtn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(107, 201, 67, 0.3);
+  border-radius: 10px;
+  padding: 8px 12px;
+  cursor: grab;
+  color: #fff;
+  width: 100%;
+  text-align: left;
+  transition:
+    background 0.15s,
+    border-color 0.15s;
+}
+
+.cropBtn:hover {
+  background: rgba(107, 201, 67, 0.15);
+  border-color: rgba(107, 201, 67, 0.7);
+}
+
+.cropEmoji {
+  font-size: 28px;
+  line-height: 1;
+}
+
+.cropName {
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.cropMeta {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.5);
+  margin-top: 2px;
+}
+
+.infoError {
+  background: rgba(180, 30, 30, 0.75);
+}
+
+.infoSuccess {
+  background: rgba(30, 140, 60, 0.75);
+}
