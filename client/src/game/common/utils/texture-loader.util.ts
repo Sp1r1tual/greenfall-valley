@@ -34,7 +34,6 @@ export const CHAR_NORTH = "char_north";
 export const CHAR_NORTH_WEST = "char_north_west";
 export const CHAR_WEST = "char_west";
 export const CHAR_SOUTH_WEST = "char_south_west";
-
 export const CHAR_WALK_SOUTH = "char_walk_south_";
 export const CHAR_WALK_SOUTH_EAST = "char_walk_south_east_";
 export const CHAR_WALK_EAST = "char_walk_east_";
@@ -43,8 +42,9 @@ export const CHAR_WALK_NORTH = "char_walk_north_";
 export const CHAR_WALK_NORTH_WEST = "char_walk_north_west_";
 export const CHAR_WALK_WEST = "char_walk_west_";
 export const CHAR_WALK_SOUTH_WEST = "char_walk_south_west_";
-
 export const CHAR_PICKUP_SOUTH = "char_pickup_south_";
+
+export const CHAR_TREE = "tree_1";
 
 export const walkPrefixForDirection = (dx: number, dy: number): string => {
   if (dx > 0 && dy === 0) return CHAR_WALK_EAST;
@@ -100,6 +100,8 @@ export const loadGameTextures = async () => {
     [CHAR_WEST, "rotations/west.png"],
     [CHAR_SOUTH_WEST, "rotations/south-west.png"],
   ];
+
+  await loadAndCache(CHAR_TREE, "/game/assets/trees/tree_1.png");
 
   await Promise.all(
     stills.map(([alias, file]) => loadAndCache(alias, base + file)),

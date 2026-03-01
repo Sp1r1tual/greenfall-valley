@@ -25,9 +25,14 @@ import {
   drawCorn,
   getTex,
 } from "./common/helpers/drawing.helpers";
-import { GRASS_TEXTURE_ALIAS } from "@/common/types/aliases/texture.aliases";
+import {
+  GRASS_TEXTURE_ALIAS,
+  TREE_TEXTURE_ALIAS,
+} from "@/common/types/aliases/texture.aliases";
 
 const GHOST_ALPHA = 0.3;
+const TREE_W = 64;
+const TREE_H = 96;
 
 export class SceneRenderer {
   private readonly world: PIXI.Container;
@@ -36,6 +41,8 @@ export class SceneRenderer {
   private grassInitialized = false;
 
   private objectGfxPool: PIXI.Graphics[] = [];
+
+  private treeSprites: Map<string, PIXI.Sprite> = new Map();
 
   readonly layerPreview: PIXI.Graphics;
 
@@ -69,7 +76,7 @@ export class SceneRenderer {
         sprite.x = sx;
         sprite.y = sy;
         sprite.zIndex = 0;
-        sprite.visible = tile.type === "grass";
+        sprite.visible = tile.type === "grass" || tile.type === "tree";
 
         this.world.addChild(sprite);
         this.grassSprites[y][x] = sprite;
@@ -168,17 +175,42 @@ export class SceneRenderer {
       }
     }
 
+    const nextActiveTreeKeys = new Set<string>();
+
     this.syncPool(objects.length);
+
+    const treeTex = getTex(TREE_TEXTURE_ALIAS);
 
     for (let i = 0; i < objects.length; i++) {
       const obj = objects[i];
       const gfx = this.objectGfxPool[i];
 
       gfx.clear();
-      gfx.visible = true;
       gfx.zIndex = 2 + obj.sortKey;
 
-      if (obj.kind === "bed") {
+      if (obj.kind === "tree" && treeTex) {
+        gfx.visible = false;
+        const key = `${obj.x},${obj.y}`;
+        nextActiveTreeKeys.add(key);
+
+        let sprite = this.treeSprites.get(key);
+        if (!sprite) {
+          sprite = new PIXI.Sprite(treeTex);
+          sprite.anchor.set(0.5, 1);
+          this.world.addChild(sprite);
+          this.treeSprites.set(key, sprite);
+        }
+
+        const { x: sx, y: sy } = isoToScreen(obj.x, obj.y);
+        sprite.x = sx;
+        sprite.y = sy + PLAYGROUND.TILE_HEIGHT - 8;
+        sprite.width = TREE_W;
+        sprite.height = TREE_H;
+        sprite.alpha = obj.alpha;
+        sprite.zIndex = 2 + obj.sortKey;
+        sprite.visible = true;
+      } else if (obj.kind === "bed") {
+        gfx.visible = true;
         const { x: sx, y: sy } = isoToScreen(obj.x, obj.y);
         drawBed(gfx, sx, sy, obj.alpha);
 
@@ -211,11 +243,19 @@ export class SceneRenderer {
           }
         }
       } else if (obj.kind === "barn") {
+        gfx.visible = true;
         const { x: sx, y: sy } = isoToScreen(obj.ox, obj.oy);
         drawBarnGraphics(gfx, sx, sy, obj.alpha);
       } else {
+        gfx.visible = true;
         const { x: sx, y: sy } = isoToScreen(obj.x, obj.y);
         drawTree(gfx, sx, sy, obj.alpha);
+      }
+    }
+
+    for (const [key, sprite] of this.treeSprites) {
+      if (!nextActiveTreeKeys.has(key)) {
+        sprite.visible = false;
       }
     }
   }
@@ -309,6 +349,11 @@ export class SceneRenderer {
       }
     }
     this.grassSprites = [];
+
+    for (const sprite of this.treeSprites.values()) {
+      sprite.destroy();
+    }
+    this.treeSprites.clear();
   }
 
   private syncPool(count: number): void {

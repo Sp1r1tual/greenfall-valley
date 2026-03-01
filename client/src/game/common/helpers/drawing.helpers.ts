@@ -12,6 +12,7 @@ import {
   GRASS_BLEND_BOTTOM_RIGHT,
   GRASS_BLEND_TOP,
   GRASS_BLEND_BOTTOM,
+  TREE_TEXTURE_ALIAS,
 } from "@/common/types/aliases/texture.aliases";
 
 import { PLAYGROUND } from "../configs/game.config";
@@ -189,22 +190,25 @@ export const drawTree = (
   sy: number,
   alpha = 1,
 ) => {
-  const baseY = sy + PLAYGROUND.TILE_HEIGHT / 2;
-  const trunkH = 40,
-    trunkW = 8;
-  const crownY = baseY - trunkH - 10;
-  g.rect(sx - trunkW / 2, baseY - trunkH, trunkW, trunkH);
-  g.fill({ color: 0x8b4513, alpha });
-  g.circle(sx - 5, crownY + 15, 30);
-  g.fill({ color: 0x2e7d32, alpha: 0.6 * alpha });
-  g.circle(sx + 8, crownY + 8, 30);
-  g.fill({ color: 0x2e7d32, alpha });
-  g.circle(sx - 8, crownY, 30);
-  g.fill({ color: 0x43a047, alpha });
-  g.circle(sx, crownY, 30);
-  g.fill({ color: 0x4caf50, alpha });
-  g.circle(sx - 10, crownY - 10, 12);
-  g.fill({ color: 0x8bc34a, alpha: 0.7 * alpha });
+  const tex = getTex(TREE_TEXTURE_ALIAS);
+
+  const spriteW = 64;
+  const spriteH = 96;
+  const baseY = sy + PLAYGROUND.TILE_HEIGHT - 8;
+
+  if (tex) {
+    g.texture(
+      tex,
+      0xffffff,
+      sx - spriteW / 2,
+      baseY - spriteH,
+      spriteW,
+      spriteH,
+    );
+  }
+  if (alpha < 1) {
+    g.fill({ color: 0xffffff, alpha: 1 - alpha });
+  }
 };
 
 export const drawBarnGraphics = (

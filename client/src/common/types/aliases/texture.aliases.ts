@@ -8,3 +8,5 @@ export const GRASS_BLEND_BOTTOM_LEFT = "grass_blend_bottom_left";
 export const GRASS_BLEND_BOTTOM_RIGHT = "grass_blend_bottom_right";
 export const GRASS_BLEND_TOP = "grass_blend_top";
 export const GRASS_BLEND_BOTTOM = "grass_blend_bottom";
+
+export const TREE_TEXTURE_ALIAS = "tree_1";
