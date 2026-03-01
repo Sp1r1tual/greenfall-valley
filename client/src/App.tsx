@@ -2,91 +2,18 @@ import { useEffect, useRef, useState, useCallback } from "react";
 
 import type { ModeType, IInventorySnapshot, CropType } from "./common/types";
 
+import { Currency } from "./components/currency/Currency";
+import { Messages } from "./components/messages/Messages";
+import { Shop } from "./components/shop/Shop";
+import { ZoomBar } from "./components/zoomBar/ZoomBar";
+import { ActionBar } from "./components/actionBar/Actionbar";
+import { DragCursor } from "./components/controls/DragCursor";
+import { CropPopup } from "./components/popups/CropPopup";
+
 import { GameEngine } from "./game/GameEngine";
-import { DEFAULT_INV } from "./common/configs/game.config";
+import { DEFAULT_INV } from "./game/common/configs/game.config";
 
 import styles from "./App.module.css";
-
-const CROPS: {
-  type: CropType;
-  emoji: string;
-  label: string;
-  time: string;
-  reward: number;
-}[] = [
-  { type: "wheat", emoji: "🌾", label: "Пшениця", time: "15 сек", reward: 30 },
-  { type: "corn", emoji: "🌽", label: "Кукурудза", time: "30 сек", reward: 70 },
-];
-
-interface IDragCursorProps {
-  x: number;
-  y: number;
-  crop: CropType;
-}
-
-const DragCursor = ({ x, y, crop }: IDragCursorProps) => {
-  const c = CROPS.find((c) => c.type === crop);
-  if (!c) return null;
-
-  return (
-    <div className={styles.dragCursor} style={{ left: x - 24, top: y - 24 }}>
-      {c.emoji}
-    </div>
-  );
-};
-
-interface ICropPopupProps {
-  screenX: number;
-  screenY: number;
-  onStartDrag: (crop: CropType, startX: number, startY: number) => void;
-  onClose: () => void;
-}
-
-const POPUP_W = 224;
-
-const CropPopup = ({
-  screenX,
-  screenY,
-  onStartDrag,
-  onClose,
-}: ICropPopupProps) => {
-  const left = Math.max(8, screenX - POPUP_W - 16);
-  const top = Math.max(8, screenY - 110);
-
-  return (
-    <>
-      <div className={styles.popupOverlay} onMouseDown={onClose} />
-      <div
-        className={styles.popup}
-        style={{ left, top }}
-        onMouseDown={(e) => e.stopPropagation()}
-      >
-        <div className={styles.popupArrow} />
-        <div className={styles.popupHint}>Затисни і тягни по грядках</div>
-        <div className={styles.popupList}>
-          {CROPS.map((crop) => (
-            <button
-              key={crop.type}
-              className={styles.cropBtn}
-              onMouseDown={(e) => {
-                e.stopPropagation();
-                onStartDrag(crop.type, e.clientX, e.clientY);
-              }}
-            >
-              <span className={styles.cropEmoji}>{crop.emoji}</span>
-              <div>
-                <div className={styles.cropName}>{crop.label}</div>
-                <div className={styles.cropMeta}>
-                  ⏱ {crop.time} · +{crop.reward} 🪙
-                </div>
-              </div>
-            </button>
-          ))}
-        </div>
-      </div>
-    </>
-  );
-};
 
 export const App = () => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -95,7 +22,6 @@ export const App = () => {
   const [inv, setInv] = useState<IInventorySnapshot>(DEFAULT_INV);
   const [currentMode, setCurrentMode] = useState<ModeType>("walk");
   const [holding, setHolding] = useState(false);
-  const [shopOpen, setShopOpen] = useState(true);
   const [info, setInfo] = useState(
     "Купи предмети в магазині та розміщуй їх на полі",
   );
@@ -255,50 +181,6 @@ export const App = () => {
   };
 
   const handleSetMode = (mode: ModeType) => engineRef.current?.setMode(mode);
-  const buyBed = () => engineRef.current?.buyBed();
-  const buyTree = () => engineRef.current?.buyTree();
-  const buyBarn = () => engineRef.current?.buyBarn();
-
-  const infoClass =
-    infoType === "error"
-      ? styles.infoError
-      : infoType === "success"
-        ? styles.infoSuccess
-        : "";
-
-  const BUTTONS: {
-    id: ModeType;
-    label: string;
-    cls: string;
-    empty?: boolean;
-  }[] = [
-    { id: "walk", label: "🚶 Ходити", cls: styles.btnWalk },
-    { id: "grass", label: "🌱 Трава", cls: styles.btnGrass },
-    {
-      id: "bed",
-      label: `🟫 Грядка (${inv.bedInv})`,
-      cls: styles.btnBed,
-      empty: inv.bedInv === 0,
-    },
-    {
-      id: "tree",
-      label: `🌳 Дерево (${inv.treeInv})`,
-      cls: styles.btnTree,
-      empty: inv.treeInv === 0,
-    },
-    {
-      id: "barn",
-      label: `🏠 Сарай (${inv.barnInv})`,
-      cls: styles.btnBarn,
-      empty: inv.barnInv === 0,
-    },
-    {
-      id: "move",
-      label: holding ? "✋ Скинути (ESC)" : "✋ Перемістити",
-      cls: styles.btnMove,
-    },
-    { id: "clear", label: "🗑️ Очистити", cls: styles.btnClear },
-  ];
 
   return (
     <>
@@ -316,88 +198,21 @@ export const App = () => {
       )}
 
       <div className={styles.ui}>
-        <div className={styles.stats}>
-          <span className={styles.coinIcon} />
-          Монети: <span>{inv.coins}</span>
-        </div>
-
-        <div className={`${styles.infoBar} ${infoClass}`}>{info}</div>
-
-        <div className={styles.shopWrapper}>
-          <button
-            className={styles.shopToggle}
-            onClick={() => setShopOpen((v) => !v)}
-          >
-            {shopOpen ? "🏪 Магазин ▲" : "🏪 Магазин ▼"}
-          </button>
-          {shopOpen && (
-            <div className={styles.shop}>
-              <div className={styles.shopTitle}>Оберіть товар</div>
-              <div className={styles.shopItems}>
-                <div className={styles.shopItem}>
-                  <div className={styles.shopItemIcon}>🟫</div>
-                  <div className={styles.shopItemName}>Грядка</div>
-                  <div className={styles.shopItemPrice}>БЕЗКОШТОВНО</div>
-                  <div className={styles.shopItemStock}>∞ в наявності</div>
-                  <button className={styles.shopItemBtn} onClick={buyBed}>
-                    Взяти
-                  </button>
-                </div>
-                <div className={styles.shopItem}>
-                  <div className={styles.shopItemIcon}>🌳</div>
-                  <div className={styles.shopItemName}>Дерево</div>
-                  <div className={styles.shopItemPrice}>
-                    <span className={styles.coinIcon} />
-                    50
-                  </div>
-                  <div className={styles.shopItemStock}>
-                    {inv.treeStock} в наявності
-                  </div>
-                  <button
-                    className={styles.shopItemBtn}
-                    onClick={buyTree}
-                    disabled={inv.coins < 50 || inv.treeStock === 0}
-                  >
-                    Купити
-                  </button>
-                </div>
-                <div className={styles.shopItem}>
-                  <div className={styles.shopItemIcon}>🏠</div>
-                  <div className={styles.shopItemName}>Сарай</div>
-                  <div className={styles.shopItemSize}>2x2 клітинки</div>
-                  <div className={styles.shopItemPrice}>
-                    <span className={styles.coinIcon} />
-                    200
-                  </div>
-                  <div className={styles.shopItemStock}>
-                    {inv.barnStock} в наявності
-                  </div>
-                  <button
-                    className={styles.shopItemBtn}
-                    onClick={buyBarn}
-                    disabled={inv.coins < 200 || inv.barnStock === 0}
-                  >
-                    Купити
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-
-        <div className={styles.zoomIndicator}>🔍 {zoomDisplay}%</div>
-
-        <div className={styles.toolbar}>
-          {BUTTONS.map(({ id, label, cls, empty }) => (
-            <button
-              key={id}
-              className={`${styles.btn} ${cls} ${currentMode === id ? styles.btnActive : ""} ${empty ? styles.btnEmpty : ""}`}
-              onClick={() => handleSetMode(id)}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+        <Currency coins={inv.coins} />
+        <Messages text={info} type={infoType} />
+        <Shop
+          inv={inv}
+          onBuyBed={() => engineRef.current?.buyBed()}
+          onBuyTree={() => engineRef.current?.buyTree()}
+          onBuyBarn={() => engineRef.current?.buyBarn()}
+        />
+        <ZoomBar zoom={zoomDisplay} />
+        <ActionBar
+          currentMode={currentMode}
+          holding={holding}
+          inv={inv}
+          onSetMode={handleSetMode}
+        />
       </div>
     </>
   );

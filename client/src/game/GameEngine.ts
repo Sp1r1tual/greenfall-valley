@@ -7,24 +7,30 @@ import type {
   IGameEngineCallbacks,
   IInventorySnapshot,
   CropType,
-  TaskType,
 } from "../common/types";
 
-import { SceneRenderer } from "./SceneRenderer";
+import { SceneRenderer } from "./Renderer";
 import { InputController } from "./InputController";
 import { Character } from "./Character";
+import { TaskQueue } from "./TaskQueue";
+import { ShopService } from "./ShopService";
+import { loadGameTextures } from "./common/utils/texture-loader.util";
+
 import {
   PLAYGROUND,
-  CHARACTER,
   CROP_GROW_MS,
   CROP_REWARD,
-} from "../common/configs/game.config";
+} from "./common/configs/game.config";
 import {
   createGrid,
   canPlaceBarn,
   screenToIso,
   inBounds,
-} from "../common/helpers/grid.helpers";
+} from "./common/helpers/grid.helpers";
+import {
+  computeAllGrassTiles,
+  recomputeGrassAround,
+} from "./common/helpers/drawing.helpers";
 
 interface IGameContext {
   app: PIXI.Application;
@@ -42,20 +48,13 @@ export class GameEngine {
   private mode: ModeType = "walk";
   private hover = { x: -1, y: -1 };
 
-  private coins = 1000;
-  private bedInv = 0;
-  private treeInv = 0;
-  private barnInv = 0;
-  private treeStock = 5;
-  private barnStock = 3;
-
   private initialized = true;
   private readonly cb: IGameEngineCallbacks;
 
   private cropTickInterval: ReturnType<typeof setInterval> | null = null;
 
-  private taskQueue: TaskType[] = [];
-  private executingTask = false;
+  private shop!: ShopService;
+  private tasks!: TaskQueue;
 
   constructor(cb: IGameEngineCallbacks) {
     this.cb = cb;
@@ -68,11 +67,7 @@ export class GameEngine {
 
   async init(container: HTMLDivElement): Promise<void> {
     const app = new PIXI.Application();
-    await app.init({
-      background: 0x4a9e2e,
-      antialias: true,
-      resizeTo: window,
-    });
+    await app.init({ background: 0x4a9e2e, antialias: true, resizeTo: window });
 
     if (!this.initialized) {
       app.destroy(true, { children: true });
@@ -88,10 +83,10 @@ export class GameEngine {
     app.stage.hitArea = { contains: () => true } as PIXI.IHitArea;
 
     const renderer = new SceneRenderer(world);
-
-    const startX = Math.floor(PLAYGROUND.GRID_W / 2);
-    const startY = Math.floor(PLAYGROUND.GRID_H / 2);
-    const character = new Character(startX, startY);
+    const character = new Character(
+      Math.floor(PLAYGROUND.GRID_W / 2),
+      Math.floor(PLAYGROUND.GRID_H / 2),
+    );
     world.addChild(character.container);
 
     const input = new InputController(
@@ -120,8 +115,30 @@ export class GameEngine {
 
     this.ctx = { app, world, renderer, input, character };
 
+    this.shop = new ShopService(
+      (text, type) => this.cb.onMessage(text, type),
+      (mode) => this.forceMode(mode),
+    );
+
+    this.tasks = new TaskQueue({
+      grid: this.grid,
+      goWorkAt: (grid, x, y, duration, onDone) =>
+        character.goWorkAt(grid, x, y, duration, onDone),
+      onMessage: (text, type) => this.cb.onMessage(text, type),
+      onRedraw: () => this.redrawStatic(),
+      onInventory: () => this.emitInventory(),
+      onCropReward: (type) => {
+        this.shop.addCoins(CROP_REWARD[type]);
+      },
+    });
+
+    await loadGameTextures();
+
+    computeAllGrassTiles(this.grid);
+    renderer.initGrassSprites(this.grid);
+
     app.ticker.add((ticker) => {
-      this.C.character.update(ticker.deltaMS / 1000, this.grid);
+      character.update(ticker.deltaMS / 1000, this.grid);
     });
 
     this.cropTickInterval = setInterval(() => this.tickCrops(), 1000);
@@ -132,13 +149,12 @@ export class GameEngine {
 
   destroy(): void {
     this.ctx?.input.detach();
+    this.ctx?.renderer.destroy();
     this.initialized = false;
-
     if (this.cropTickInterval !== null) {
       clearInterval(this.cropTickInterval);
       this.cropTickInterval = null;
     }
-
     this.ctx?.app.destroy(true, { children: true });
     this.ctx = null;
   }
@@ -148,27 +164,20 @@ export class GameEngine {
     clientY: number,
   ): { x: number; y: number } | null {
     if (!this.ctx) return null;
-
     const canvas = this.ctx.app.canvas as HTMLCanvasElement;
     const { world } = this.ctx;
-
     const rect = canvas.getBoundingClientRect();
     const localX = (clientX - rect.left - world.x) / world.scale.x;
     const localY = (clientY - rect.top - world.y) / world.scale.y;
     const iso = screenToIso(localX, localY);
-
     if (!inBounds(iso.x, iso.y)) return null;
-
     return iso;
   }
 
   tryPlantAt(clientX: number, clientY: number, cropType: CropType): boolean {
     const iso = this.getIsoAtScreenPos(clientX, clientY);
-
     if (!iso) return false;
-
     const tile = this.grid[iso.y][iso.x];
-
     if (tile.type !== "bed" || tile.crop) return false;
 
     tile.crop = {
@@ -178,10 +187,9 @@ export class GameEngine {
       stage: "seedling",
       pending: true,
     };
-
-    this.taskQueue.push({ kind: "plant", x: iso.x, y: iso.y, cropType });
+    this.tasks.push({ kind: "plant", x: iso.x, y: iso.y, cropType });
     this.redrawStatic();
-    this.processQueue();
+    this.tasks.process();
     return true;
   }
 
@@ -197,16 +205,16 @@ export class GameEngine {
   setMode(mode: ModeType): void {
     if (this.heldItem && mode !== "move") this.cancelMove();
 
+    const { bedInv, treeInv, barnInv } = this.shop.getState();
     const isPlacement = ["bed", "tree", "barn", "grass", "clear"].includes(
       mode,
     );
     const hasStock =
-      (mode === "bed" && this.bedInv > 0) ||
-      (mode === "tree" && this.treeInv > 0) ||
-      (mode === "barn" && this.barnInv > 0);
+      (mode === "bed" && bedInv > 0) ||
+      (mode === "tree" && treeInv > 0) ||
+      (mode === "barn" && barnInv > 0);
 
     const next = isPlacement && this.mode === mode && !hasStock ? "walk" : mode;
-
     this.mode = next as ModeType;
     this.cb.onModeChange(next as ModeType);
     this.redrawPreview();
@@ -219,36 +227,21 @@ export class GameEngine {
   }
 
   buyBed(): void {
-    this.bedInv++;
+    this.shop.buyBed();
     this.emitInventory();
-    this.showMsg("✅ Отримано грядку!", "success");
-    this.forceMode("bed");
   }
-
   buyTree(): void {
-    if (this.coins < 50 || this.treeStock === 0) return;
-    this.coins -= 50;
-    this.treeInv++;
-    this.treeStock--;
+    this.shop.buyTree();
     this.emitInventory();
-    this.showMsg("✅ Куплено дерево!", "success");
-    this.forceMode("tree");
   }
-
   buyBarn(): void {
-    if (this.coins < 200 || this.barnStock === 0) return;
-    this.coins -= 200;
-    this.barnInv++;
-    this.barnStock--;
+    this.shop.buyBarn();
     this.emitInventory();
-    this.showMsg("✅ Куплено сарай!", "success");
-    this.forceMode("barn");
   }
 
   plantCrop(gridX: number, gridY: number, cropType: CropType): void {
     const tile = this.grid[gridY]?.[gridX];
     if (!tile || tile.type !== "bed" || tile.crop) return;
-
     tile.crop = {
       type: cropType,
       plantedAt: 0,
@@ -256,14 +249,13 @@ export class GameEngine {
       stage: "seedling",
       pending: true,
     };
-    this.taskQueue.push({ kind: "plant", x: gridX, y: gridY, cropType });
+    this.tasks.push({ kind: "plant", x: gridX, y: gridY, cropType });
     this.redrawStatic();
-    this.processQueue();
+    this.tasks.process();
   }
 
   cancelMove(): void {
     const held = this.heldItem;
-
     if (!held) return;
 
     if (held.type === "barn") {
@@ -285,96 +277,7 @@ export class GameEngine {
   }
 
   getInventorySnapshot(): IInventorySnapshot {
-    return {
-      coins: this.coins,
-      bedInv: this.bedInv,
-      treeInv: this.treeInv,
-      barnInv: this.barnInv,
-      treeStock: this.treeStock,
-      barnStock: this.barnStock,
-    };
-  }
-
-  private processQueue(): void {
-    if (this.executingTask || this.taskQueue.length === 0) return;
-
-    const task = this.taskQueue.shift()!;
-    this.executingTask = true;
-
-    if (task.kind === "plant") {
-      this.runPlantTask(task);
-    } else {
-      this.runHarvestTask(task);
-    }
-  }
-
-  private runPlantTask(task: Extract<TaskType, { kind: "plant" }>): void {
-    const tile = this.grid[task.y]?.[task.x];
-
-    if (!tile || tile.type !== "bed" || !tile.crop?.pending) {
-      this.executingTask = false;
-      this.processQueue();
-      return;
-    }
-
-    const label = task.cropType === "wheat" ? "пшеницю" : "кукурудзу";
-    this.showMsg(`🚜 Іду садити ${label}…`, "normal");
-
-    this.C.character.goWorkAt(
-      this.grid,
-      task.x,
-      task.y,
-      CHARACTER.PLANT_DURATION,
-      () => {
-        const t = this.grid[task.y]?.[task.x];
-        if (t?.crop?.pending) {
-          t.crop.pending = false;
-          t.crop.plantedAt = Date.now();
-        }
-        this.redrawStatic();
-
-        const lbl = task.cropType === "wheat" ? "Пшениця" : "Кукурудза";
-        this.showMsg(`🌱 Посіяно: ${lbl}`, "success");
-        this.executingTask = false;
-        this.processQueue();
-      },
-    );
-  }
-
-  private runHarvestTask(task: Extract<TaskType, { kind: "harvest" }>): void {
-    const tile = this.grid[task.y]?.[task.x];
-
-    if (!tile?.crop || tile.crop.stage !== "ready") {
-      this.executingTask = false;
-      this.processQueue();
-      return;
-    }
-
-    const label = tile.crop.type === "wheat" ? "пшеницю" : "кукурудзу";
-    this.showMsg(`🚜 Іду збирати ${label}…`, "normal");
-
-    this.C.character.goWorkAt(
-      this.grid,
-      task.x,
-      task.y,
-      CHARACTER.HARVEST_DURATION,
-      () => {
-        const t = this.grid[task.y]?.[task.x];
-
-        if (t?.crop?.stage === "ready") {
-          const reward = CROP_REWARD[t.crop.type];
-          const lbl = t.crop.type === "wheat" ? "Пшениця" : "Кукурудза";
-
-          this.coins += reward;
-          delete t.crop;
-          this.emitInventory();
-          this.redrawStatic();
-          this.showMsg(`🌾 Зібрано: ${lbl} +${reward} монет!`, "success");
-        }
-        this.executingTask = false;
-        this.processQueue();
-      },
-    );
+    return this.shop.getState();
   }
 
   private tickCrops(): void {
@@ -405,6 +308,7 @@ export class GameEngine {
 
   private handleTileClick(ix: number, iy: number): void {
     const tile = this.grid[iy][ix];
+    const { bedInv, treeInv, barnInv } = this.shop.getState();
 
     if (this.mode === "move") {
       this.handleMoveMode(ix, iy, tile);
@@ -416,48 +320,63 @@ export class GameEngine {
     }
 
     if (this.mode === "bed") {
-      if (this.bedInv > 0 && tile.type === "grass") {
-        this.bedInv--;
+      if (bedInv > 0 && tile.type === "grass") {
+        this.shop.consumeBed();
         this.grid[iy][ix].type = "bed";
+        this.notifyTileChanged(ix, iy);
         this.emitInventory();
         this.redrawStatic();
-        if (this.bedInv === 0) this.forceMode("walk");
-      } else if (this.bedInv === 0) {
-        this.showMsg("❌ Немає грядок! Візьми в магазині", "error");
+        if (this.shop.getState().bedInv === 0) this.forceMode("walk");
+      } else if (bedInv === 0) {
+        this.cb.onMessage("❌ Немає грядок! Візьми в магазині", "error");
       }
       return;
     }
 
     if (this.mode === "tree") {
-      if (this.treeInv > 0 && tile.type === "grass") {
-        this.treeInv--;
+      if (treeInv > 0 && tile.type === "grass") {
+        this.shop.consumeTree();
         this.grid[iy][ix].type = "tree";
+        this.notifyTileChanged(ix, iy);
         this.emitInventory();
         this.redrawStatic();
-        if (this.treeInv === 0) this.forceMode("walk");
-      } else if (this.treeInv === 0) {
-        this.showMsg("❌ Немає дерев! Купи в магазині за 50 монет", "error");
+        if (this.shop.getState().treeInv === 0) this.forceMode("walk");
+      } else if (treeInv === 0) {
+        this.cb.onMessage(
+          "❌ Немає дерев! Купи в магазині за 50 монет",
+          "error",
+        );
       }
       return;
     }
 
     if (this.mode === "barn") {
-      if (this.barnInv > 0) {
+      if (barnInv > 0) {
         if (canPlaceBarn(this.grid, ix, iy)) {
-          this.barnInv--;
+          this.shop.consumeBarn();
           for (let dy = 0; dy < 2; dy++)
             for (let dx = 0; dx < 2; dx++) {
               this.grid[iy + dy][ix + dx].type = "barn";
               this.grid[iy + dy][ix + dx].barnOrigin = { x: ix, y: iy };
             }
+
+          for (let dy = 0; dy < 2; dy++)
+            for (let dx = 0; dx < 2; dx++)
+              this.notifyTileChanged(ix + dx, iy + dy);
           this.emitInventory();
           this.redrawStatic();
-          if (this.barnInv === 0) this.forceMode("walk");
+          if (this.shop.getState().barnInv === 0) this.forceMode("walk");
         } else {
-          this.showMsg("❌ Потрібно 2x2 вільних клітинок для сараю!", "error");
+          this.cb.onMessage(
+            "❌ Потрібно 2x2 вільних клітинок для сараю!",
+            "error",
+          );
         }
       } else {
-        this.showMsg("❌ Немає сараїв! Купи в магазині за 200 монет", "error");
+        this.cb.onMessage(
+          "❌ Немає сараїв! Купи в магазині за 200 монет",
+          "error",
+        );
       }
       return;
     }
@@ -466,18 +385,16 @@ export class GameEngine {
       if (tile.type === "bed") {
         if (tile.crop?.stage === "ready" && !tile.crop.pending) {
           tile.crop.pendingHarvest = true;
-          this.taskQueue.push({ kind: "harvest", x: ix, y: iy });
-          this.processQueue();
+          this.tasks.push({ kind: "harvest", x: ix, y: iy });
+          this.tasks.process();
           this.redrawStatic();
-          this.showMsg("🌾 Відправляю збирати врожай…", "normal");
+          this.cb.onMessage("🌾 Відправляю збирати врожай…", "normal");
         } else if (!tile.crop) {
           this.cb.onBedClick(ix, iy);
         } else if (tile.crop.pending) {
-          const queuePos = this.taskQueue.filter(
-            (t) => t.kind === "plant",
-          ).length;
-          this.showMsg(
-            `⏳ В черзі на посів (ще ${queuePos + (this.executingTask ? 1 : 0)} задач)…`,
+          const queuePos = this.tasks.pendingPlantCount;
+          this.cb.onMessage(
+            `⏳ В черзі на посів (ще ${queuePos + (this.tasks.isExecuting ? 1 : 0)} задач)…`,
             "normal",
           );
         } else {
@@ -485,7 +402,7 @@ export class GameEngine {
             (tile.crop.growthMs - (Date.now() - tile.crop.plantedAt)) / 1000,
           );
           const lbl = tile.crop.type === "wheat" ? "Пшениця" : "Кукурудза";
-          this.showMsg(`⏳ ${lbl} росте… ще ~${remaining}с`, "normal");
+          this.cb.onMessage(`⏳ ${lbl} росте… ще ~${remaining}с`, "normal");
         }
         return;
       }
@@ -511,8 +428,12 @@ export class GameEngine {
             this.grid[originY + dy][originX + dx].type = "grass";
             delete this.grid[originY + dy][originX + dx].barnOrigin;
           }
+        for (let dy = 0; dy < 2; dy++)
+          for (let dx = 0; dx < 2; dx++)
+            this.notifyTileChanged(originX + dx, originY + dy);
       } else {
         this.grid[iy][ix].type = "grass";
+        this.notifyTileChanged(ix, iy);
       }
 
       this.heldItem = { type: itemType, fromX: originX, fromY: originY };
@@ -526,7 +447,7 @@ export class GameEngine {
           : tile.type === "grass";
 
       if (!canPlace) {
-        this.showMsg("❌ Сюди не можна поставити!", "error");
+        this.cb.onMessage("❌ Сюди не можна поставити!", "error");
         return;
       }
 
@@ -536,8 +457,12 @@ export class GameEngine {
             this.grid[iy + dy][ix + dx].type = "barn";
             this.grid[iy + dy][ix + dx].barnOrigin = { x: ix, y: iy };
           }
+        for (let dy = 0; dy < 2; dy++)
+          for (let dx = 0; dx < 2; dx++)
+            this.notifyTileChanged(ix + dx, iy + dy);
       } else {
         this.grid[iy][ix].type = held.type;
+        this.notifyTileChanged(ix, iy);
       }
 
       this.heldItem = null;
@@ -552,28 +477,35 @@ export class GameEngine {
     tile: GridType[number][number],
   ): void {
     if (tile.type === "bed") {
-      this.bedInv++;
+      this.shop.returnBed();
       this.grid[iy][ix].type = "grass";
       delete this.grid[iy][ix].crop;
-      this.taskQueue = this.taskQueue.filter(
-        (t) => !(t.x === ix && t.y === iy),
-      );
+      this.tasks.clear(ix, iy);
+      this.notifyTileChanged(ix, iy);
     } else if (tile.type === "tree") {
-      this.treeInv++;
+      this.shop.returnTree();
       this.grid[iy][ix].type = "grass";
+      this.notifyTileChanged(ix, iy);
     } else if (tile.type === "barn" && tile.barnOrigin) {
       const { x: ox, y: oy } = tile.barnOrigin;
-      this.barnInv++;
+      this.shop.returnBarn();
       for (let dy = 0; dy < 2; dy++)
         for (let dx = 0; dx < 2; dx++) {
           this.grid[oy + dy][ox + dx].type = "grass";
           delete this.grid[oy + dy][ox + dx].barnOrigin;
         }
+      for (let dy = 0; dy < 2; dy++)
+        for (let dx = 0; dx < 2; dx++) this.notifyTileChanged(ox + dx, oy + dy);
     } else {
       return;
     }
     this.emitInventory();
     this.redrawStatic();
+  }
+
+  private notifyTileChanged(x: number, y: number): void {
+    recomputeGrassAround(this.grid, x, y);
+    this.C.renderer.updateGrassSprites(this.grid, x, y);
   }
 
   private redrawStatic(): void {
@@ -582,24 +514,17 @@ export class GameEngine {
   }
 
   private redrawPreview(): void {
+    const { bedInv, treeInv, barnInv } = this.shop.getState();
     this.C.renderer.drawPreview(
       this.grid,
       this.hover,
       this.mode,
       this.heldItem,
-      {
-        bedInv: this.bedInv,
-        treeInv: this.treeInv,
-        barnInv: this.barnInv,
-      },
+      { bedInv, treeInv, barnInv },
     );
   }
 
   private emitInventory(): void {
     this.cb.onInventoryChange(this.getInventorySnapshot());
-  }
-
-  private showMsg(text: string, type: "error" | "success" | "normal"): void {
-    this.cb.onMessage(text, type);
   }
 }

@@ -1,6 +1,6 @@
 import type { GridType, IGridPos } from "../common/types";
 
-import { inBounds } from "../common/helpers/grid.helpers";
+import { inBounds } from "./common/helpers/grid.helpers";
 
 const NEIGHBORS = [
   { dx: 1, dy: 0 },

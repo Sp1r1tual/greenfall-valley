@@ -1,0 +1,14 @@
+.zoomIndicator {
+  position: absolute;
+  bottom: 24px;
+  left: 16px;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(6px);
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 12px;
+  font-weight: bold;
+  padding: 6px 12px;
+  border-radius: 10px;
+  pointer-events: none;
+  font-family: monospace;
+}

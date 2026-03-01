@@ -1,11 +1,10 @@
+import * as PIXI from "pixi.js";
+
 export type PlaceableTileType = "bed" | "tree" | "barn";
-
 export type TileType = "grass" | PlaceableTileType;
-
+export type GrassVariantType = 0 | 1;
 export type ModeType = "walk" | "clear" | "move" | "grass" | PlaceableTileType;
-
 export type CropType = "wheat" | "corn";
-
 export type CropStageType = "seedling" | "growing" | "ready";
 
 export interface ICropData {
@@ -21,6 +20,8 @@ export interface ITileData {
   type: TileType;
   barnOrigin?: { x: number; y: number };
   crop?: ICropData;
+  grassVariant: GrassVariantType;
+  grassTexture: PIXI.Texture | undefined;
 }
 
 export type GridType = ITileData[][];

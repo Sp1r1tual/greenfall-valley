@@ -2,8 +2,8 @@ import * as PIXI from "pixi.js";
 
 import type { IInputCallbacks } from "../common/types";
 
-import { ZOOM } from "../common/configs/game.config";
-import { inBounds, screenToIso } from "../common/helpers/grid.helpers";
+import { ZOOM } from "./common/configs/game.config";
+import { inBounds, screenToIso } from "./common/helpers/grid.helpers";
 
 export class InputController {
   private zoom = 1;
