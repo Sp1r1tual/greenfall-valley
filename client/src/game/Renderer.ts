@@ -100,7 +100,7 @@ export class SceneRenderer {
       (tile.type === "grass" ? tile.grassTexture : null) ?? fallbackTex;
 
     sprite.texture = tex;
-    sprite.visible = tile.type === "grass";
+    sprite.visible = tile.type === "grass" || tile.type === "tree";
   }
 
   private refreshAllGrassSprites(grid: GridType): void {

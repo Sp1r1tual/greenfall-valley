@@ -32,7 +32,7 @@ export class ShopService {
   }
 
   getState(): Readonly<IShopState> {
-    return this.state;
+    return { ...this.state };
   }
 
   addCoins(amount: number): void {
