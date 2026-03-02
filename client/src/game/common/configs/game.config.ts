@@ -14,11 +14,11 @@ export const ZOOM = {
   ZOOM_DISPLAY_SCALE: 2.5,
 };
 
-export const INITIAL_COINS = 1000;
 export const TREE_PRICE = 50;
 export const BARN_PRICE = 200;
-export const TREE_STOCK = 5;
-export const BARN_STOCK = 3;
+
+export const BG_COLOR = 0x4a9e2e;
+export const MESSAGE_TIMEOUT_MS = 2500;
 
 export const DEFAULT_INV = {
   coins: 1000,
@@ -44,4 +44,14 @@ export const CROP_GROW_MS: Record<CropType, number> = {
 export const CROP_REWARD: Record<CropType, number> = {
   wheat: 30,
   corn: 70,
+};
+
+export const CROP_LABELS: Record<CropType, string> = {
+  wheat: "Пшениця",
+  corn: "Кукурудза",
+};
+
+export const CROP_LABELS_ACCUSATIVE: Record<CropType, string> = {
+  wheat: "пшеницю",
+  corn: "кукурудзу",
 };

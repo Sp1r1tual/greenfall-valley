@@ -56,8 +56,28 @@ export const createGrid = (): GridType => {
   return grid;
 };
 
-export const cloneGrid = (g: GridType): GridType =>
-  g.map((row) => row.map((t) => ({ ...t })));
+export function forEachBarnTile(
+  x: number,
+  y: number,
+  fn: (tx: number, ty: number) => void,
+): void {
+  for (let dy = 0; dy < 2; dy++)
+    for (let dx = 0; dx < 2; dx++) fn(x + dx, y + dy);
+}
+
+export function placeBarn(grid: GridType, x: number, y: number): void {
+  forEachBarnTile(x, y, (tx, ty) => {
+    grid[ty][tx].type = "barn";
+    grid[ty][tx].barnOrigin = { x, y };
+  });
+}
+
+export function removeBarn(grid: GridType, x: number, y: number): void {
+  forEachBarnTile(x, y, (tx, ty) => {
+    grid[ty][tx].type = "grass";
+    delete grid[ty][tx].barnOrigin;
+  });
+}
 
 export const isoToScreen = (gx: number, gy: number) => {
   const { x: ox, y: oy } = getSceneOrigin();

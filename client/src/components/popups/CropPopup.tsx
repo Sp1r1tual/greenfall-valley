@@ -1,16 +1,19 @@
 import type { CropType } from "../../common/types";
 
+import {
+  CROP_GROW_MS,
+  CROP_REWARD,
+  CROP_LABELS,
+} from "../../game/common/configs/game.config";
+
 import styles from "./CropPopup.module.css";
 
 const CROPS: {
   type: CropType;
   emoji: string;
-  label: string;
-  time: string;
-  reward: number;
 }[] = [
-  { type: "wheat", emoji: "🌾", label: "Пшениця", time: "15 сек", reward: 30 },
-  { type: "corn", emoji: "🌽", label: "Кукурудза", time: "30 сек", reward: 70 },
+  { type: "wheat", emoji: "🌾" },
+  { type: "corn", emoji: "🌽" },
 ];
 
 const POPUP_W = 224;
@@ -53,9 +56,10 @@ export const CropPopup = ({
             >
               <span className={styles.cropEmoji}>{crop.emoji}</span>
               <div>
-                <div className={styles.cropName}>{crop.label}</div>
+                <div className={styles.cropName}>{CROP_LABELS[crop.type]}</div>
                 <div className={styles.cropMeta}>
-                  ⏱ {crop.time} · +{crop.reward} 🪙
+                  ⏱ {Math.round(CROP_GROW_MS[crop.type] / 1000)} сек · +
+                  {CROP_REWARD[crop.type]} 🪙
                 </div>
               </div>
             </button>

@@ -1,5 +1,8 @@
 import type { ModeType, TileType, CropType } from "./scene.types";
 
+export type MessageType = "normal" | "error" | "success";
+export type OnMessageFnType = (text: string, type: MessageType) => void;
+
 export interface IGridPos {
   x: number;
   y: number;
@@ -28,7 +31,7 @@ export interface IInventorySnapshot {
 
 export interface IGameEngineCallbacks {
   onInventoryChange: (snap: IInventorySnapshot) => void;
-  onMessage: (text: string, type: "normal" | "error" | "success") => void;
+  onMessage: OnMessageFnType;
   onModeChange: (mode: ModeType) => void;
   onHoldingChange: (holding: boolean) => void;
   onZoomChange: (zoom: number) => void;

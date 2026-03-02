@@ -1,67 +1,16 @@
 import * as PIXI from "pixi.js";
 
 import type { GridType, IGridPos } from "../common/types";
+import type { FacingDirType } from "./CharacterAnimator";
 
 import { findPath, isWalkable } from "./PathFinder";
-import { PLAYGROUND, CHARACTER } from "./common/configs/game.config";
-import { isoToScreen, inBounds } from "./common/helpers/grid.helpers";
+import { CharacterAnimator } from "./CharacterAnimator";
 
-import {
-  CHAR_SOUTH_ALIAS,
-  CHAR_SOUTH_EAST_ALIAS,
-  CHAR_EAST_ALIAS,
-  CHAR_NORTH_EAST_ALIAS,
-  CHAR_NORTH_ALIAS,
-  CHAR_NORTH_WEST_ALIAS,
-  CHAR_WEST_ALIAS,
-  CHAR_SOUTH_WEST_ALIAS,
-  CHAR_WALK_SOUTH_ALIAS,
-  CHAR_WALK_SOUTH_EAST_ALIAS,
-  CHAR_WALK_EAST_ALIAS,
-  CHAR_WALK_NORTH_EAST_ALIAS,
-  CHAR_WALK_NORTH_ALIAS,
-  CHAR_WALK_NORTH_WEST_ALIAS,
-  CHAR_WALK_WEST_ALIAS,
-  CHAR_WALK_SOUTH_WEST_ALIAS,
-  CHAR_PICKUP_SOUTH_ALIAS,
-} from "@/common/types/aliases/texture.aliases";
+import { CHARACTER } from "./common/configs/game.config";
+import { isoToScreen, inBounds } from "./common/helpers/grid.helpers";
 
 const WALK_FRAME_COUNT = 6;
 const PICKUP_FRAME_COUNT = 5;
-const SPRITE_SCALE = 1;
-const SPRITE_FEET_OFFSET_Y = 12;
-
-type FacingDirType =
-  | "down"
-  | "up"
-  | "right"
-  | "left"
-  | "down-right"
-  | "down-left"
-  | "up-right"
-  | "up-left";
-
-const stillAliasFor: Record<FacingDirType, string> = {
-  down: CHAR_SOUTH_ALIAS,
-  up: CHAR_NORTH_ALIAS,
-  right: CHAR_EAST_ALIAS,
-  left: CHAR_WEST_ALIAS,
-  "down-right": CHAR_SOUTH_EAST_ALIAS,
-  "down-left": CHAR_SOUTH_WEST_ALIAS,
-  "up-right": CHAR_NORTH_EAST_ALIAS,
-  "up-left": CHAR_NORTH_WEST_ALIAS,
-};
-
-const walkPrefixFor: Record<FacingDirType, string> = {
-  down: CHAR_WALK_SOUTH_ALIAS,
-  up: CHAR_WALK_NORTH_ALIAS,
-  right: CHAR_WALK_EAST_ALIAS,
-  left: CHAR_WALK_WEST_ALIAS,
-  "down-right": CHAR_WALK_SOUTH_EAST_ALIAS,
-  "down-left": CHAR_WALK_SOUTH_WEST_ALIAS,
-  "up-right": CHAR_WALK_NORTH_EAST_ALIAS,
-  "up-left": CHAR_WALK_NORTH_WEST_ALIAS,
-};
 
 function facingFromDelta(dx: number, dy: number): FacingDirType {
   if (dx > 0 && dy > 0) return "down";
@@ -73,15 +22,6 @@ function facingFromDelta(dx: number, dy: number): FacingDirType {
   if (dy > 0) return "down-left";
   if (dy < 0) return "up-right";
   return "down";
-}
-
-function getTexSafe(alias: string): PIXI.Texture | null {
-  try {
-    const t = PIXI.Assets.get<PIXI.Texture>(alias) ?? PIXI.Cache.get(alias);
-    return t ?? null;
-  } catch {
-    return null;
-  }
 }
 
 export class Character {
@@ -106,10 +46,7 @@ export class Character {
 
   private pendingWork: { duration: number; onDone: () => void } | null = null;
 
-  readonly container: PIXI.Container;
-  private sprite: PIXI.Sprite;
-  private shadowGfx: PIXI.Graphics;
-  private progressGfx: PIXI.Graphics;
+  private animator: CharacterAnimator;
 
   constructor(startX: number, startY: number) {
     this.gx = startX;
@@ -119,32 +56,23 @@ export class Character {
     this.px = screen.x;
     this.py = screen.y;
 
-    this.container = new PIXI.Container();
+    this.animator = new CharacterAnimator();
 
-    this.shadowGfx = new PIXI.Graphics();
-    this.container.addChild(this.shadowGfx);
+    this.applyIdleState();
+  }
 
-    this.sprite = new PIXI.Sprite();
-    this.sprite.anchor.set(0.5, 1);
-    this.sprite.y = SPRITE_FEET_OFFSET_Y;
-    this.sprite.scale.set(SPRITE_SCALE);
-    this.sprite.roundPixels = true;
-    this.container.addChild(this.sprite);
-
-    this.progressGfx = new PIXI.Graphics();
-    this.container.addChild(this.progressGfx);
-
-    this.applyIdleFrame();
-    this.updateContainerPosition();
-    this.updateZSort();
+  get container(): PIXI.Container {
+    return this.animator.container;
   }
 
   get tileX() {
     return Math.round(this.gx);
   }
+
   get tileY() {
     return Math.round(this.gy);
   }
+
   get busy() {
     return this.isMoving || this.isWorking || this.pendingWork !== null;
   }
@@ -212,8 +140,9 @@ export class Character {
     this.path = [];
     this.pathIndex = 0;
     this.workCycle = 0;
-    this.progressGfx.clear();
-    this.applyIdleFrame();
+
+    this.animator.clearProgress();
+    this.applyIdleState();
   }
 
   update(dt: number, grid: GridType): void {
@@ -224,16 +153,17 @@ export class Character {
       if (this.workTimer <= 0) {
         this.isWorking = false;
         this.workCycle = 0;
-        this.progressGfx.clear();
+
+        this.animator.clearProgress();
 
         const cb = this.onWorkDone;
         this.onWorkDone = null;
         cb?.();
 
-        this.applyIdleFrame();
+        this.applyIdleState();
       } else {
-        this.applyWorkFrame();
-        this.drawProgress();
+        this.animator.applyWorkFrame(this.workCycle);
+        this.animator.drawProgress(this.workProgress);
       }
       return;
     }
@@ -282,89 +212,16 @@ export class Character {
 
       this.walkCycle = (this.walkCycle + dt * WALK_FRAME_COUNT * 0.4) % 1;
 
-      this.applyWalkFrame();
-      this.updateContainerPosition();
-      this.updateZSort();
+      this.animator.applyWalkFrame(this.facing, this.walkCycle, this.isPhasing);
+      this.animator.updateContainerPosition(this.px, this.py);
+      this.animator.updateZSort(this.gx, this.gy);
       return;
     }
 
     this.isMoving = false;
     this.isPhasing = false;
     this.walkCycle = 0;
-    this.applyIdleFrame();
-  }
-
-  private applyIdleFrame(): void {
-    this.setFrame(stillAliasFor[this.facing] ?? CHAR_SOUTH_ALIAS);
-    this.sprite.alpha = this.isPhasing ? 0.45 : 1;
-    this.drawShadow();
-    this.updateContainerPosition();
-    this.updateZSort();
-  }
-
-  private applyWalkFrame(): void {
-    const prefix = walkPrefixFor[this.facing] ?? CHAR_WALK_SOUTH_ALIAS;
-    const fi = Math.floor(this.walkCycle * WALK_FRAME_COUNT) % WALK_FRAME_COUNT;
-    this.setFrame(`${prefix}${fi}`);
-    this.sprite.alpha = this.isPhasing ? 0.45 : 1;
-    this.drawShadow();
-  }
-
-  private applyWorkFrame(): void {
-    const fi =
-      Math.floor(this.workCycle * PICKUP_FRAME_COUNT) % PICKUP_FRAME_COUNT;
-    this.setFrame(`${CHAR_PICKUP_SOUTH_ALIAS}${fi}`);
-    this.sprite.alpha = 1;
-    this.drawShadow();
-  }
-
-  private setFrame(alias: string): void {
-    const tex = getTexSafe(alias) ?? getTexSafe(CHAR_SOUTH_ALIAS);
-    if (!tex) return;
-    tex.source.scaleMode = "nearest";
-    this.sprite.texture = tex;
-  }
-
-  private drawShadow(): void {
-    const g = this.shadowGfx;
-    g.clear();
-
-    g.ellipse(0, 2, 11, 4);
-    g.fill({ color: 0x000000, alpha: this.isPhasing ? 0.08 : 0.22 });
-  }
-
-  private drawProgress(): void {
-    const pg = this.progressGfx;
-    pg.clear();
-
-    const progress = this.workProgress;
-    const W = 34,
-      H = 5;
-
-    const barY = -(56 * SPRITE_SCALE) - 4;
-    const x = -W / 2;
-
-    pg.rect(x - 1, barY - 1, W + 2, H + 2);
-    pg.fill({ color: 0x000000, alpha: 0.5 });
-
-    if (progress > 0) {
-      const color = progress > 0.65 ? 0x6bc943 : 0xf0c040;
-      pg.rect(x, barY, W * progress, H);
-      pg.fill({ color });
-    }
-
-    pg.rect(x - 1, barY - 1, W + 2, H + 2);
-    pg.stroke({ color: 0x000000, alpha: 0.4, width: 1 });
-  }
-
-  private updateContainerPosition(): void {
-    this.container.x = this.px;
-
-    this.container.y = this.py + PLAYGROUND.TILE_HEIGHT / 2;
-  }
-
-  private updateZSort(): void {
-    this.container.zIndex = 2 + this.gx + this.gy + 0.5;
+    this.applyIdleState();
   }
 
   private beginWork(duration: number, onDone: () => void): void {
@@ -373,5 +230,11 @@ export class Character {
     this.workTotal = duration;
     this.workCycle = 0;
     this.onWorkDone = onDone;
+  }
+
+  private applyIdleState(): void {
+    this.animator.applyIdleFrame(this.facing, this.isPhasing);
+    this.animator.updateContainerPosition(this.px, this.py);
+    this.animator.updateZSort(this.gx, this.gy);
   }
 }

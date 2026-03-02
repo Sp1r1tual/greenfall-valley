@@ -1,9 +1,16 @@
-import type { TaskType, CropType, GridType } from "../common/types";
+import type {
+  TaskType,
+  CropType,
+  GridType,
+  OnMessageFnType,
+} from "../common/types";
 
-type OnMessageType = (
-  text: string,
-  type: "error" | "success" | "normal",
-) => void;
+import {
+  CHARACTER,
+  CROP_LABELS,
+  CROP_LABELS_ACCUSATIVE,
+} from "./common/configs/game.config";
+
 type OnRedrawType = () => void;
 type OnInventoryType = () => void;
 
@@ -16,7 +23,7 @@ interface ITaskQueueDeps {
     duration: number,
     onDone: () => void,
   ) => void;
-  onMessage: OnMessageType;
+  onMessage: OnMessageFnType;
   onRedraw: OnRedrawType;
   onInventory: OnInventoryType;
   onCropReward: (type: CropType) => void;
@@ -70,18 +77,19 @@ export class TaskQueue {
       return;
     }
 
-    const label = task.cropType === "wheat" ? "пшеницю" : "кукурудзу";
-    onMessage(`🚜 Іду садити ${label}…`, "normal");
+    onMessage(
+      `🚜 Іду садити ${CROP_LABELS_ACCUSATIVE[task.cropType]}…`,
+      "normal",
+    );
 
-    goWorkAt(grid, task.x, task.y, 2, () => {
+    goWorkAt(grid, task.x, task.y, CHARACTER.PLANT_DURATION, () => {
       const t = grid[task.y]?.[task.x];
       if (t?.crop?.pending) {
         t.crop.pending = false;
         t.crop.plantedAt = Date.now();
       }
       onRedraw();
-      const lbl = task.cropType === "wheat" ? "Пшениця" : "Кукурудза";
-      onMessage(`🌱 Посіяно: ${lbl}`, "success");
+      onMessage(`🌱 Посіяно: ${CROP_LABELS[task.cropType]}`, "success");
       this.executing = false;
       this.process();
     });
@@ -98,18 +106,19 @@ export class TaskQueue {
       return;
     }
 
-    const label = tile.crop.type === "wheat" ? "пшеницю" : "кукурудзу";
-    onMessage(`🚜 Іду збирати ${label}…`, "normal");
+    onMessage(
+      `🚜 Іду збирати ${CROP_LABELS_ACCUSATIVE[tile.crop.type]}…`,
+      "normal",
+    );
 
-    goWorkAt(grid, task.x, task.y, 2, () => {
+    goWorkAt(grid, task.x, task.y, CHARACTER.HARVEST_DURATION, () => {
       const t = grid[task.y]?.[task.x];
       if (t?.crop?.stage === "ready") {
-        const lbl = t.crop.type === "wheat" ? "Пшениця" : "Кукурудза";
         onCropReward(t.crop.type);
+        onMessage(`🌾 Зібрано: ${CROP_LABELS[t.crop.type]}!`, "success");
         delete t.crop;
         onInventory();
         onRedraw();
-        onMessage(`🌾 Зібрано: ${lbl}!`, "success");
       }
       this.executing = false;
       this.process();

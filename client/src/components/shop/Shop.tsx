@@ -2,6 +2,8 @@ import { useState } from "react";
 
 import type { IInventorySnapshot } from "../../common/types";
 
+import { TREE_PRICE, BARN_PRICE } from "../../game/common/configs/game.config";
+
 import styles from "./Shop.module.css";
 
 interface IShopProps {
@@ -39,7 +41,7 @@ export const Shop = ({ inv, onBuyBed, onBuyTree, onBuyBarn }: IShopProps) => {
               <div className={styles.shopItemName}>Дерево</div>
               <div className={styles.shopItemPrice}>
                 <span className={styles.coinIcon} />
-                50
+                {TREE_PRICE}
               </div>
               <div className={styles.shopItemStock}>
                 {inv.treeStock} в наявності
@@ -47,7 +49,7 @@ export const Shop = ({ inv, onBuyBed, onBuyTree, onBuyBarn }: IShopProps) => {
               <button
                 className={styles.shopItemBtn}
                 onClick={onBuyTree}
-                disabled={inv.coins < 50 || inv.treeStock === 0}
+                disabled={inv.coins < TREE_PRICE || inv.treeStock === 0}
               >
                 Купити
               </button>
@@ -59,7 +61,7 @@ export const Shop = ({ inv, onBuyBed, onBuyTree, onBuyBarn }: IShopProps) => {
               <div className={styles.shopItemSize}>2x2 клітинки</div>
               <div className={styles.shopItemPrice}>
                 <span className={styles.coinIcon} />
-                200
+                {BARN_PRICE}
               </div>
               <div className={styles.shopItemStock}>
                 {inv.barnStock} в наявності
@@ -67,7 +69,7 @@ export const Shop = ({ inv, onBuyBed, onBuyTree, onBuyBarn }: IShopProps) => {
               <button
                 className={styles.shopItemBtn}
                 onClick={onBuyBarn}
-                disabled={inv.coins < 200 || inv.barnStock === 0}
+                disabled={inv.coins < BARN_PRICE || inv.barnStock === 0}
               >
                 Купити
               </button>

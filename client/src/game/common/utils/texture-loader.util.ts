@@ -13,6 +13,7 @@ import {
   GRASS_BLEND_TOP,
   BED_TEXTURE_ALIAS,
   TREE_TEXTURE_ALIAS,
+  BARN_TEXTURE_ALIAS,
   CHAR_SOUTH_ALIAS,
   CHAR_SOUTH_EAST_ALIAS,
   CHAR_EAST_ALIAS,
@@ -30,7 +31,6 @@ import {
   CHAR_WALK_WEST_ALIAS,
   CHAR_WALK_SOUTH_WEST_ALIAS,
   CHAR_PICKUP_SOUTH_ALIAS,
-  BARN_TEXTURE_ALIAS,
 } from "@/common/types/aliases/texture.aliases";
 
 const TEXTURE_FRAME_MAP: Record<string, string> = {
@@ -44,30 +44,6 @@ const TEXTURE_FRAME_MAP: Record<string, string> = {
   [GRASS_BLEND_BOTTOM]: "grass_tile_flowers_bottom.png",
   [GRASS_BLEND_BOTTOM_LEFT]: "grass_tile_flowers_bottom_left.png",
   [GRASS_BLEND_BOTTOM_RIGHT]: "grass_tile_flowers_bottom_right.png",
-};
-
-export const walkPrefixForDirection = (dx: number, dy: number): string => {
-  if (dx > 0 && dy === 0) return CHAR_WALK_EAST_ALIAS;
-  if (dx < 0 && dy === 0) return CHAR_WALK_WEST_ALIAS;
-  if (dx === 0 && dy > 0) return CHAR_WALK_SOUTH_ALIAS;
-  if (dx === 0 && dy < 0) return CHAR_WALK_NORTH_ALIAS;
-  if (dx > 0 && dy > 0) return CHAR_WALK_SOUTH_EAST_ALIAS;
-  if (dx > 0 && dy < 0) return CHAR_WALK_NORTH_EAST_ALIAS;
-  if (dx < 0 && dy > 0) return CHAR_WALK_SOUTH_WEST_ALIAS;
-  if (dx < 0 && dy < 0) return CHAR_WALK_NORTH_WEST_ALIAS;
-  return CHAR_WALK_SOUTH_ALIAS;
-};
-
-export const stillAliasForDirection = (dx: number, dy: number): string => {
-  if (dx > 0 && dy === 0) return CHAR_EAST_ALIAS;
-  if (dx < 0 && dy === 0) return CHAR_WEST_ALIAS;
-  if (dx === 0 && dy > 0) return CHAR_SOUTH_ALIAS;
-  if (dx === 0 && dy < 0) return CHAR_NORTH_ALIAS;
-  if (dx > 0 && dy > 0) return CHAR_SOUTH_EAST_ALIAS;
-  if (dx > 0 && dy < 0) return CHAR_NORTH_EAST_ALIAS;
-  if (dx < 0 && dy > 0) return CHAR_SOUTH_WEST_ALIAS;
-  if (dx < 0 && dy < 0) return CHAR_NORTH_WEST_ALIAS;
-  return CHAR_SOUTH_ALIAS;
 };
 
 const setNearest = (tex: PIXI.Texture) => {

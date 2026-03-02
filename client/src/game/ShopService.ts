@@ -1,14 +1,11 @@
-import type { ModeType } from "@/common/types";
+import type { ModeType, OnMessageFnType } from "@/common/types";
+
 import {
   TREE_PRICE,
   BARN_PRICE,
   DEFAULT_INV,
 } from "./common/configs/game.config";
 
-type OnMessageType = (
-  text: string,
-  type: "error" | "success" | "normal",
-) => void;
 type OnModeType = (mode: ModeType) => void;
 
 interface IShopState {
@@ -22,10 +19,10 @@ interface IShopState {
 
 export class ShopService {
   private state: IShopState;
-  private onMessage: OnMessageType;
+  private onMessage: OnMessageFnType;
   private onMode: OnModeType;
 
-  constructor(onMessage: OnMessageType, onMode: OnModeType) {
+  constructor(onMessage: OnMessageFnType, onMode: OnModeType) {
     this.onMessage = onMessage;
     this.onMode = onMode;
     this.state = { ...DEFAULT_INV };
