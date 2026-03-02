@@ -15,19 +15,22 @@ import {
   canPlaceBarn,
 } from "./common/helpers/grid.helpers";
 import {
-  drawBed,
   drawTree,
-  drawBarnGraphics,
   drawHoverHighlight,
   drawPickedHighlight,
   drawDropHighlight,
   drawWheat,
   drawCorn,
+  drawBarn,
   getTex,
+  BARN_W,
+  BARN_H,
 } from "./common/helpers/drawing.helpers";
 import {
   GRASS_TEXTURE_ALIAS,
   TREE_TEXTURE_ALIAS,
+  BED_TEXTURE_ALIAS,
+  BARN_TEXTURE_ALIAS,
 } from "@/common/types/aliases/texture.aliases";
 
 const GHOST_ALPHA = 0.3;
@@ -43,6 +46,11 @@ export class SceneRenderer {
   private objectGfxPool: PIXI.Graphics[] = [];
 
   private treeSprites: Map<string, PIXI.Sprite> = new Map();
+  private bedSprites: Map<string, PIXI.Sprite> = new Map();
+  private barnSprites: Map<string, PIXI.Sprite> = new Map();
+
+  private bedPreviewSprite: PIXI.Sprite | null = null;
+  private barnPreviewSprite: PIXI.Sprite | null = null;
 
   readonly layerPreview: PIXI.Graphics;
 
@@ -71,7 +79,6 @@ export class SceneRenderer {
           (tile.type === "grass" ? tile.grassTexture : null) ?? fallbackTex;
 
         const sprite = new PIXI.Sprite(tex);
-
         sprite.anchor.set(0.5, 0);
         sprite.x = sx;
         sprite.y = sy;
@@ -107,12 +114,18 @@ export class SceneRenderer {
       (tile.type === "grass" ? tile.grassTexture : null) ?? fallbackTex;
 
     sprite.texture = tex;
-    sprite.visible = tile.type === "grass" || tile.type === "tree";
+    sprite.visible = tile.type !== "bed";
   }
 
   private refreshAllGrassSprites(grid: GridType): void {
     for (let y = 0; y < PLAYGROUND.GRID_H; y++) {
       for (let x = 0; x < PLAYGROUND.GRID_W; x++) {
+        const sprite = this.grassSprites[y]?.[x];
+        if (sprite) {
+          const { x: sx, y: sy } = isoToScreen(x, y);
+          sprite.x = sx;
+          sprite.y = sy;
+        }
         this.updateGrassSprite(grid, x, y);
       }
     }
@@ -176,20 +189,23 @@ export class SceneRenderer {
     }
 
     const nextActiveTreeKeys = new Set<string>();
+    const nextActiveBedKeys = new Set<string>();
+    const nextActiveBarnKeys = new Set<string>();
 
     this.syncPool(objects.length);
 
     const treeTex = getTex(TREE_TEXTURE_ALIAS);
+    const bedTex = getTex(BED_TEXTURE_ALIAS);
 
     for (let i = 0; i < objects.length; i++) {
       const obj = objects[i];
       const gfx = this.objectGfxPool[i];
 
       gfx.clear();
+      gfx.visible = false;
       gfx.zIndex = 2 + obj.sortKey;
 
       if (obj.kind === "tree" && treeTex) {
-        gfx.visible = false;
         const key = `${obj.x},${obj.y}`;
         nextActiveTreeKeys.add(key);
 
@@ -210,9 +226,33 @@ export class SceneRenderer {
         sprite.zIndex = 2 + obj.sortKey;
         sprite.visible = true;
       } else if (obj.kind === "bed") {
-        gfx.visible = true;
+        const key = `${obj.x},${obj.y}`;
+        nextActiveBedKeys.add(key);
+
         const { x: sx, y: sy } = isoToScreen(obj.x, obj.y);
-        drawBed(gfx, sx, sy, obj.alpha);
+
+        if (bedTex) {
+          let bedSprite = this.bedSprites.get(key);
+          if (!bedSprite) {
+            bedSprite = new PIXI.Sprite(bedTex);
+            bedSprite.anchor.set(0.5, 0);
+            this.world.addChild(bedSprite);
+            this.bedSprites.set(key, bedSprite);
+          }
+
+          bedSprite.x = sx;
+          bedSprite.y = sy;
+          bedSprite.width = PLAYGROUND.TILE_WIDTH;
+          bedSprite.height = PLAYGROUND.TILE_HEIGHT;
+          bedSprite.alpha = obj.alpha;
+          bedSprite.zIndex = 2 + obj.sortKey;
+          bedSprite.visible = true;
+
+          if (obj.alpha >= 1) {
+            gfx.visible = true;
+            gfx.zIndex = 3 + obj.sortKey;
+          }
+        }
 
         if (obj.alpha >= 1) {
           const tile = grid[obj.y][obj.x];
@@ -243,20 +283,28 @@ export class SceneRenderer {
           }
         }
       } else if (obj.kind === "barn") {
-        gfx.visible = true;
-        const { x: sx, y: sy } = isoToScreen(obj.ox, obj.oy);
-        drawBarnGraphics(gfx, sx, sy, obj.alpha);
-      } else {
-        gfx.visible = true;
-        const { x: sx, y: sy } = isoToScreen(obj.x, obj.y);
-        drawTree(gfx, sx, sy, obj.alpha);
+        const key = `${obj.ox},${obj.oy}`;
+        nextActiveBarnKeys.add(key);
+        drawBarn(
+          this.world,
+          this.barnSprites,
+          key,
+          obj.ox,
+          obj.oy,
+          obj.alpha,
+          obj.sortKey,
+        );
       }
     }
 
     for (const [key, sprite] of this.treeSprites) {
-      if (!nextActiveTreeKeys.has(key)) {
-        sprite.visible = false;
-      }
+      if (!nextActiveTreeKeys.has(key)) sprite.visible = false;
+    }
+    for (const [key, sprite] of this.bedSprites) {
+      if (!nextActiveBedKeys.has(key)) sprite.visible = false;
+    }
+    for (const [key, sprite] of this.barnSprites) {
+      if (!nextActiveBarnKeys.has(key)) sprite.visible = false;
     }
   }
 
@@ -271,6 +319,9 @@ export class SceneRenderer {
     lp.clear();
     lp.alpha = 1;
 
+    if (this.bedPreviewSprite) this.bedPreviewSprite.visible = false;
+    if (this.barnPreviewSprite) this.barnPreviewSprite.visible = false;
+
     const { x: hx, y: hy } = hover;
 
     if (mode === "move") {
@@ -283,12 +334,18 @@ export class SceneRenderer {
     drawHoverHighlight(lp, sx, sy);
 
     const tile = grid[hy][hx];
-    if (mode === "bed" && inv.bedInv > 0 && tile.type === "grass")
-      drawBed(lp, sx, sy, 0.5);
-    else if (mode === "tree" && inv.treeInv > 0 && tile.type === "grass")
+
+    if (mode === "bed" && inv.bedInv > 0 && tile.type === "grass") {
+      this.showBedPreview(sx, sy);
+    } else if (mode === "tree" && inv.treeInv > 0 && tile.type === "grass") {
       drawTree(lp, sx, sy, 0.5);
-    else if (mode === "barn" && inv.barnInv > 0 && canPlaceBarn(grid, hx, hy))
-      drawBarnGraphics(lp, sx, sy, 0.5);
+    } else if (
+      mode === "barn" &&
+      inv.barnInv > 0 &&
+      canPlaceBarn(grid, hx, hy)
+    ) {
+      this.showBarnPreview(hx, hy);
+    }
   }
 
   drawCropDragPreview(
@@ -299,6 +356,9 @@ export class SceneRenderer {
     const lp = this.layerPreview;
     lp.clear();
     lp.alpha = 1;
+
+    if (this.bedPreviewSprite) this.bedPreviewSprite.visible = false;
+    if (this.barnPreviewSprite) this.barnPreviewSprite.visible = false;
 
     if (!iso || !cropType) return;
     if (!inBounds(iso.x, iso.y)) return;
@@ -340,20 +400,69 @@ export class SceneRenderer {
   clearPreview(): void {
     this.layerPreview.clear();
     this.layerPreview.alpha = 1;
+    if (this.bedPreviewSprite) this.bedPreviewSprite.visible = false;
+    if (this.barnPreviewSprite) this.barnPreviewSprite.visible = false;
   }
 
   destroy(): void {
     for (const row of this.grassSprites) {
-      for (const sprite of row) {
-        sprite?.destroy();
-      }
+      for (const sprite of row) sprite?.destroy();
     }
     this.grassSprites = [];
 
-    for (const sprite of this.treeSprites.values()) {
-      sprite.destroy();
-    }
+    for (const sprite of this.treeSprites.values()) sprite.destroy();
     this.treeSprites.clear();
+
+    for (const sprite of this.bedSprites.values()) sprite.destroy();
+    this.bedSprites.clear();
+
+    for (const sprite of this.barnSprites.values()) sprite.destroy();
+    this.barnSprites.clear();
+
+    this.bedPreviewSprite?.destroy();
+    this.bedPreviewSprite = null;
+
+    this.barnPreviewSprite?.destroy();
+    this.barnPreviewSprite = null;
+  }
+
+  private showBedPreview(sx: number, sy: number): void {
+    const bedTex = getTex(BED_TEXTURE_ALIAS);
+    if (!bedTex) return;
+
+    if (!this.bedPreviewSprite) {
+      this.bedPreviewSprite = new PIXI.Sprite(bedTex);
+      this.bedPreviewSprite.anchor.set(0.5, 0);
+      this.bedPreviewSprite.zIndex = 9998;
+      this.world.addChild(this.bedPreviewSprite);
+    }
+
+    this.bedPreviewSprite.x = sx;
+    this.bedPreviewSprite.y = sy;
+    this.bedPreviewSprite.width = PLAYGROUND.TILE_WIDTH;
+    this.bedPreviewSprite.height = PLAYGROUND.TILE_HEIGHT;
+    this.bedPreviewSprite.alpha = 0.5;
+    this.bedPreviewSprite.visible = true;
+  }
+
+  private showBarnPreview(hx: number, hy: number): void {
+    const barnTex = getTex(BARN_TEXTURE_ALIAS);
+    if (!barnTex) return;
+
+    if (!this.barnPreviewSprite) {
+      this.barnPreviewSprite = new PIXI.Sprite(barnTex);
+      this.barnPreviewSprite.anchor.set(0.5, 1);
+      this.barnPreviewSprite.zIndex = 9998;
+      this.world.addChild(this.barnPreviewSprite);
+    }
+
+    const { x: sx, y: sy } = isoToScreen(hx + 1, hy + 1);
+    this.barnPreviewSprite.x = sx;
+    this.barnPreviewSprite.y = sy + PLAYGROUND.TILE_HEIGHT + 16;
+    this.barnPreviewSprite.width = BARN_W;
+    this.barnPreviewSprite.height = BARN_H;
+    this.barnPreviewSprite.alpha = 0.5;
+    this.barnPreviewSprite.visible = true;
   }
 
   private syncPool(count: number): void {
@@ -394,10 +503,10 @@ export class SceneRenderer {
       }
 
       drawDropHighlight(lp, sx, sy, canPlace);
-      if (heldItem.type === "bed") drawBed(lp, sx, sy, 0.5);
+
+      if (heldItem.type === "bed") this.showBedPreview(sx, sy);
       if (heldItem.type === "tree") drawTree(lp, sx, sy, 0.5);
-      if (heldItem.type === "barn" && canPlace)
-        drawBarnGraphics(lp, sx, sy, 0.5);
+      if (heldItem.type === "barn" && canPlace) this.showBarnPreview(hx, hy);
     } else {
       if (!inBounds(hx, hy)) return;
       const tile = grid[hy][hx];

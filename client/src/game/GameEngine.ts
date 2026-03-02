@@ -56,6 +56,13 @@ export class GameEngine {
   private shop!: ShopService;
   private tasks!: TaskQueue;
 
+  private onResize = () => {
+    if (!this.ctx) return;
+    computeAllGrassTiles(this.grid);
+    this.C.renderer.initGrassSprites(this.grid);
+    this.redrawStatic();
+  };
+
   constructor(cb: IGameEngineCallbacks) {
     this.cb = cb;
   }
@@ -75,6 +82,8 @@ export class GameEngine {
     }
 
     container.appendChild(app.canvas as HTMLCanvasElement);
+
+    await loadGameTextures();
 
     const world = new PIXI.Container();
     world.sortableChildren = true;
@@ -132,14 +141,14 @@ export class GameEngine {
       },
     });
 
-    await loadGameTextures();
-
     computeAllGrassTiles(this.grid);
     renderer.initGrassSprites(this.grid);
 
     app.ticker.add((ticker) => {
       character.update(ticker.deltaMS / 1000, this.grid);
     });
+
+    window.addEventListener("resize", this.onResize);
 
     this.cropTickInterval = setInterval(() => this.tickCrops(), 1000);
 
@@ -148,6 +157,7 @@ export class GameEngine {
   }
 
   destroy(): void {
+    window.removeEventListener("resize", this.onResize);
     this.ctx?.input.detach();
     this.ctx?.renderer.destroy();
     this.initialized = false;
@@ -164,11 +174,16 @@ export class GameEngine {
     clientY: number,
   ): { x: number; y: number } | null {
     if (!this.ctx) return null;
-    const canvas = this.ctx.app.canvas as HTMLCanvasElement;
-    const { world } = this.ctx;
+    const { world, app } = this.ctx;
+    const canvas = app.canvas as HTMLCanvasElement;
     const rect = canvas.getBoundingClientRect();
-    const localX = (clientX - rect.left - world.x) / world.scale.x;
-    const localY = (clientY - rect.top - world.y) / world.scale.y;
+
+    const scaleX = app.renderer.width / rect.width;
+    const scaleY = app.renderer.height / rect.height;
+
+    const localX = ((clientX - rect.left) * scaleX - world.x) / world.scale.x;
+    const localY = ((clientY - rect.top) * scaleY - world.y) / world.scale.y;
+
     const iso = screenToIso(localX, localY);
     if (!inBounds(iso.x, iso.y)) return null;
     return iso;
@@ -406,6 +421,9 @@ export class GameEngine {
         }
         return;
       }
+
+      if (tile.type === "barn" || tile.type === "tree") return;
+
       this.C.character.moveTo(this.grid, ix, iy);
     }
   }

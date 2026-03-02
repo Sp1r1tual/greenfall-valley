@@ -13,9 +13,15 @@ import {
   GRASS_BLEND_TOP,
   GRASS_BLEND_BOTTOM,
   TREE_TEXTURE_ALIAS,
+  BED_TEXTURE_ALIAS,
+  BARN_TEXTURE_ALIAS,
 } from "@/common/types/aliases/texture.aliases";
 
 import { PLAYGROUND } from "../configs/game.config";
+import { isoToScreen } from "./grid.helpers";
+
+export const BARN_W = 128;
+export const BARN_H = 160;
 
 export const tilePoly = (sx: number, sy: number): number[] => [
   sx,
@@ -161,26 +167,15 @@ export const drawBed = (
   sy: number,
   alpha = 1,
 ) => {
-  g.poly(tilePoly(sx, sy));
-  g.fill({ color: 0xa07855, alpha });
-  g.poly([
-    sx,
-    sy + PLAYGROUND.TILE_HEIGHT / 2,
-    sx + PLAYGROUND.TILE_WIDTH / 2,
-    sy + PLAYGROUND.TILE_HEIGHT / 2,
-    sx,
-    sy + PLAYGROUND.TILE_HEIGHT,
-    sx - PLAYGROUND.TILE_WIDTH / 2,
-    sy + PLAYGROUND.TILE_HEIGHT / 2,
-  ]);
-  g.fill({ color: 0x6b4e35, alpha: 0.5 * alpha });
-  g.poly(tilePoly(sx, sy));
-  g.stroke({ color: 0x4a3625, width: 1.5, alpha });
-  for (let i = 0; i < 3; i++) {
-    const off = (i + 1) * (PLAYGROUND.TILE_HEIGHT / 4);
-    g.moveTo(sx - PLAYGROUND.TILE_WIDTH / 4, sy + off);
-    g.lineTo(sx + PLAYGROUND.TILE_WIDTH / 4, sy + off);
-    g.stroke({ color: 0x000000, alpha: 0.3 * alpha, width: 1 });
+  const tex = getTex(BED_TEXTURE_ALIAS);
+
+  if (tex) {
+    const tw = PLAYGROUND.TILE_WIDTH;
+    const th = PLAYGROUND.TILE_HEIGHT;
+    g.texture(tex, 0xffffff, sx - tw / 2, sy, tw, th);
+    if (alpha < 1) {
+      g.fill({ color: 0xffffff, alpha: 1 - alpha });
+    }
   }
 };
 
@@ -211,149 +206,34 @@ export const drawTree = (
   }
 };
 
-export const drawBarnGraphics = (
-  g: PIXI.Graphics,
-  sx: number,
-  sy: number,
-  alpha = 1,
-) => {
-  const hw = PLAYGROUND.TILE_WIDTH / 2,
-    hh = PLAYGROUND.TILE_HEIGHT / 2;
-  const wallH = 50,
-    roofH = 40;
-  const top = { x: sx, y: sy };
-  const right = { x: sx + hw * 2, y: sy + hh * 2 };
-  const bottom = { x: sx, y: sy + hh * 4 };
-  const left = { x: sx - hw * 2, y: sy + hh * 2 };
+export const drawBarn = (
+  world: PIXI.Container,
+  barnSprites: Map<string, PIXI.Sprite>,
+  key: string,
+  ox: number,
+  oy: number,
+  alpha: number,
+  sortKey: number,
+): void => {
+  const barnTex = getTex(BARN_TEXTURE_ALIAS);
+  if (!barnTex) return;
 
-  g.poly([top.x, top.y, right.x, right.y, bottom.x, bottom.y, left.x, left.y]);
-  g.fill({ color: 0x8b7355, alpha });
-  g.poly([top.x, top.y, right.x, right.y, bottom.x, bottom.y, left.x, left.y]);
-  g.stroke({ color: 0x5d4a37, width: 2, alpha });
-
-  g.poly([
-    left.x,
-    left.y,
-    bottom.x,
-    bottom.y,
-    bottom.x,
-    bottom.y - wallH,
-    left.x,
-    left.y - wallH,
-  ]);
-  g.fill({ color: 0xa0826d, alpha });
-  g.poly([
-    left.x,
-    left.y,
-    bottom.x,
-    bottom.y,
-    bottom.x,
-    bottom.y - wallH,
-    left.x,
-    left.y - wallH,
-  ]);
-  g.stroke({ color: 0x5d4a37, width: 2, alpha });
-  for (let i = 1; i < 4; i++) {
-    const off = (wallH / 4) * i;
-    g.moveTo(left.x, left.y - off);
-    g.lineTo(bottom.x, bottom.y - off);
-    g.stroke({ color: 0x8b6f47, width: 2, alpha });
+  let barnSprite = barnSprites.get(key);
+  if (!barnSprite) {
+    barnSprite = new PIXI.Sprite(barnTex);
+    barnSprite.anchor.set(0.5, 1);
+    world.addChild(barnSprite);
+    barnSprites.set(key, barnSprite);
   }
 
-  g.poly([
-    right.x,
-    right.y,
-    bottom.x,
-    bottom.y,
-    bottom.x,
-    bottom.y - wallH,
-    right.x,
-    right.y - wallH,
-  ]);
-  g.fill({ color: 0x8b6f47, alpha });
-  g.poly([
-    right.x,
-    right.y,
-    bottom.x,
-    bottom.y,
-    bottom.x,
-    bottom.y - wallH,
-    right.x,
-    right.y - wallH,
-  ]);
-  g.stroke({ color: 0x5d4a37, width: 2, alpha });
-  for (let i = 0; i < 5; i++) {
-    const r = i / 4;
-    const bx = right.x + (bottom.x - right.x) * r,
-      by = right.y + (bottom.y - right.y) * r;
-    g.moveTo(bx, by - wallH);
-    g.lineTo(bx, by);
-    g.stroke({ color: 0x6b5435, width: 1.5, alpha });
-  }
-
-  const rcx = (top.x + right.x + bottom.x + left.x) / 4,
-    rcy = (top.y + right.y + bottom.y + left.y) / 4;
-  const peak = { x: rcx, y: rcy - wallH - roofH };
-
-  g.poly([peak.x, peak.y, top.x, top.y - wallH, left.x, left.y - wallH]);
-  g.fill({ color: 0x6b4513, alpha });
-  g.poly([peak.x, peak.y, top.x, top.y - wallH, left.x, left.y - wallH]);
-  g.stroke({ color: 0x4a2f0a, width: 1.5, alpha });
-  g.poly([peak.x, peak.y, top.x, top.y - wallH, right.x, right.y - wallH]);
-  g.fill({ color: 0x8b4513, alpha });
-  g.poly([peak.x, peak.y, top.x, top.y - wallH, right.x, right.y - wallH]);
-  g.stroke({ color: 0x654321, width: 1.5, alpha });
-  g.poly([
-    peak.x,
-    peak.y,
-    right.x,
-    right.y - wallH,
-    bottom.x,
-    bottom.y - wallH,
-  ]);
-  g.fill({ color: 0xb0722d, alpha });
-  g.poly([
-    peak.x,
-    peak.y,
-    right.x,
-    right.y - wallH,
-    bottom.x,
-    bottom.y - wallH,
-  ]);
-  g.stroke({ color: 0x8b5a2b, width: 1.5, alpha });
-  g.poly([peak.x, peak.y, left.x, left.y - wallH, bottom.x, bottom.y - wallH]);
-  g.fill({ color: 0xa0522d, alpha });
-  g.poly([peak.x, peak.y, left.x, left.y - wallH, bottom.x, bottom.y - wallH]);
-  g.stroke({ color: 0x804020, width: 1.5, alpha });
-
-  if (alpha >= 1) {
-    const dr = 0.65,
-      dw = 20,
-      dh = 32;
-    const anchorX = right.x + (bottom.x - right.x) * dr,
-      anchorY = right.y + (bottom.y - right.y) * dr;
-    const wallDx = (bottom.x - right.x) / wallH,
-      wallDy = (bottom.y - right.y) / wallH;
-    const x0 = anchorX - (dw / 2) * wallDx,
-      y0 = anchorY - (dw / 2) * wallDy - dh;
-    const x1 = anchorX + (dw / 2) * wallDx,
-      y1 = anchorY + (dw / 2) * wallDy - dh;
-    const doorPoly = [x0, y0, x1, y1, x1, y1 + dh, x0, y0 + dh];
-    g.poly(doorPoly);
-    g.fill({ color: 0x3e2723 });
-    g.poly(doorPoly);
-    g.stroke({ color: 0x1b0000, width: 2 });
-    const mx = (x0 + x1) / 2,
-      my = (y0 + y1) / 2;
-    g.moveTo(mx, my);
-    g.lineTo(mx, my + dh);
-    g.stroke({ color: 0x5d4037, width: 2 });
-    g.moveTo(x0, y0 + dh / 2);
-    g.lineTo(x1, y1 + dh / 2);
-    g.stroke({ color: 0x5d4037, width: 2 });
-    g.circle(x1 - wallDx * 3, y1 + dh / 2 - wallDy * 3, 3);
-    g.fill({ color: 0xffd700 });
-  }
+  const { x: sx, y: sy } = isoToScreen(ox + 1, oy + 1);
+  barnSprite.x = sx;
+  barnSprite.y = sy + PLAYGROUND.TILE_HEIGHT + 16;
+  barnSprite.width = BARN_W;
+  barnSprite.height = BARN_H;
+  barnSprite.alpha = alpha;
+  barnSprite.zIndex = 2 + sortKey;
+  barnSprite.visible = true;
 };
 
 export const drawWheat = (

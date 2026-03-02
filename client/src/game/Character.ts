@@ -7,24 +7,24 @@ import { PLAYGROUND, CHARACTER } from "./common/configs/game.config";
 import { isoToScreen, inBounds } from "./common/helpers/grid.helpers";
 
 import {
-  CHAR_SOUTH,
-  CHAR_SOUTH_EAST,
-  CHAR_EAST,
-  CHAR_NORTH_EAST,
-  CHAR_NORTH,
-  CHAR_NORTH_WEST,
-  CHAR_WEST,
-  CHAR_SOUTH_WEST,
-  CHAR_WALK_SOUTH,
-  CHAR_WALK_SOUTH_EAST,
-  CHAR_WALK_EAST,
-  CHAR_WALK_NORTH_EAST,
-  CHAR_WALK_NORTH,
-  CHAR_WALK_NORTH_WEST,
-  CHAR_WALK_WEST,
-  CHAR_WALK_SOUTH_WEST,
-  CHAR_PICKUP_SOUTH,
-} from "./common/utils/texture-loader.util";
+  CHAR_SOUTH_ALIAS,
+  CHAR_SOUTH_EAST_ALIAS,
+  CHAR_EAST_ALIAS,
+  CHAR_NORTH_EAST_ALIAS,
+  CHAR_NORTH_ALIAS,
+  CHAR_NORTH_WEST_ALIAS,
+  CHAR_WEST_ALIAS,
+  CHAR_SOUTH_WEST_ALIAS,
+  CHAR_WALK_SOUTH_ALIAS,
+  CHAR_WALK_SOUTH_EAST_ALIAS,
+  CHAR_WALK_EAST_ALIAS,
+  CHAR_WALK_NORTH_EAST_ALIAS,
+  CHAR_WALK_NORTH_ALIAS,
+  CHAR_WALK_NORTH_WEST_ALIAS,
+  CHAR_WALK_WEST_ALIAS,
+  CHAR_WALK_SOUTH_WEST_ALIAS,
+  CHAR_PICKUP_SOUTH_ALIAS,
+} from "@/common/types/aliases/texture.aliases";
 
 const WALK_FRAME_COUNT = 6;
 const PICKUP_FRAME_COUNT = 5;
@@ -42,25 +42,25 @@ type FacingDirType =
   | "up-left";
 
 const stillAliasFor: Record<FacingDirType, string> = {
-  down: CHAR_SOUTH,
-  up: CHAR_NORTH,
-  right: CHAR_EAST,
-  left: CHAR_WEST,
-  "down-right": CHAR_SOUTH_EAST,
-  "down-left": CHAR_SOUTH_WEST,
-  "up-right": CHAR_NORTH_EAST,
-  "up-left": CHAR_NORTH_WEST,
+  down: CHAR_SOUTH_ALIAS,
+  up: CHAR_NORTH_ALIAS,
+  right: CHAR_EAST_ALIAS,
+  left: CHAR_WEST_ALIAS,
+  "down-right": CHAR_SOUTH_EAST_ALIAS,
+  "down-left": CHAR_SOUTH_WEST_ALIAS,
+  "up-right": CHAR_NORTH_EAST_ALIAS,
+  "up-left": CHAR_NORTH_WEST_ALIAS,
 };
 
 const walkPrefixFor: Record<FacingDirType, string> = {
-  down: CHAR_WALK_SOUTH,
-  up: CHAR_WALK_NORTH,
-  right: CHAR_WALK_EAST,
-  left: CHAR_WALK_WEST,
-  "down-right": CHAR_WALK_SOUTH_EAST,
-  "down-left": CHAR_WALK_SOUTH_WEST,
-  "up-right": CHAR_WALK_NORTH_EAST,
-  "up-left": CHAR_WALK_NORTH_WEST,
+  down: CHAR_WALK_SOUTH_ALIAS,
+  up: CHAR_WALK_NORTH_ALIAS,
+  right: CHAR_WALK_EAST_ALIAS,
+  left: CHAR_WALK_WEST_ALIAS,
+  "down-right": CHAR_WALK_SOUTH_EAST_ALIAS,
+  "down-left": CHAR_WALK_SOUTH_WEST_ALIAS,
+  "up-right": CHAR_WALK_NORTH_EAST_ALIAS,
+  "up-left": CHAR_WALK_NORTH_WEST_ALIAS,
 };
 
 function facingFromDelta(dx: number, dy: number): FacingDirType {
@@ -295,7 +295,7 @@ export class Character {
   }
 
   private applyIdleFrame(): void {
-    this.setFrame(stillAliasFor[this.facing] ?? CHAR_SOUTH);
+    this.setFrame(stillAliasFor[this.facing] ?? CHAR_SOUTH_ALIAS);
     this.sprite.alpha = this.isPhasing ? 0.45 : 1;
     this.drawShadow();
     this.updateContainerPosition();
@@ -303,7 +303,7 @@ export class Character {
   }
 
   private applyWalkFrame(): void {
-    const prefix = walkPrefixFor[this.facing] ?? CHAR_WALK_SOUTH;
+    const prefix = walkPrefixFor[this.facing] ?? CHAR_WALK_SOUTH_ALIAS;
     const fi = Math.floor(this.walkCycle * WALK_FRAME_COUNT) % WALK_FRAME_COUNT;
     this.setFrame(`${prefix}${fi}`);
     this.sprite.alpha = this.isPhasing ? 0.45 : 1;
@@ -313,13 +313,13 @@ export class Character {
   private applyWorkFrame(): void {
     const fi =
       Math.floor(this.workCycle * PICKUP_FRAME_COUNT) % PICKUP_FRAME_COUNT;
-    this.setFrame(`${CHAR_PICKUP_SOUTH}${fi}`);
+    this.setFrame(`${CHAR_PICKUP_SOUTH_ALIAS}${fi}`);
     this.sprite.alpha = 1;
     this.drawShadow();
   }
 
   private setFrame(alias: string): void {
-    const tex = getTexSafe(alias) ?? getTexSafe(CHAR_SOUTH);
+    const tex = getTexSafe(alias) ?? getTexSafe(CHAR_SOUTH_ALIAS);
     if (!tex) return;
     tex.source.scaleMode = "nearest";
     this.sprite.texture = tex;

@@ -11,6 +11,26 @@ import {
   GRASS_BLEND_BOTTOM_RIGHT,
   GRASS_BLEND_BOTTOM,
   GRASS_BLEND_TOP,
+  BED_TEXTURE_ALIAS,
+  TREE_TEXTURE_ALIAS,
+  CHAR_SOUTH_ALIAS,
+  CHAR_SOUTH_EAST_ALIAS,
+  CHAR_EAST_ALIAS,
+  CHAR_NORTH_EAST_ALIAS,
+  CHAR_NORTH_ALIAS,
+  CHAR_NORTH_WEST_ALIAS,
+  CHAR_WEST_ALIAS,
+  CHAR_SOUTH_WEST_ALIAS,
+  CHAR_WALK_SOUTH_ALIAS,
+  CHAR_WALK_SOUTH_EAST_ALIAS,
+  CHAR_WALK_EAST_ALIAS,
+  CHAR_WALK_NORTH_EAST_ALIAS,
+  CHAR_WALK_NORTH_ALIAS,
+  CHAR_WALK_NORTH_WEST_ALIAS,
+  CHAR_WALK_WEST_ALIAS,
+  CHAR_WALK_SOUTH_WEST_ALIAS,
+  CHAR_PICKUP_SOUTH_ALIAS,
+  BARN_TEXTURE_ALIAS,
 } from "@/common/types/aliases/texture.aliases";
 
 const TEXTURE_FRAME_MAP: Record<string, string> = {
@@ -26,48 +46,28 @@ const TEXTURE_FRAME_MAP: Record<string, string> = {
   [GRASS_BLEND_BOTTOM_RIGHT]: "grass_tile_flowers_bottom_right.png",
 };
 
-export const CHAR_SOUTH = "char_south";
-export const CHAR_SOUTH_EAST = "char_south_east";
-export const CHAR_EAST = "char_east";
-export const CHAR_NORTH_EAST = "char_north_east";
-export const CHAR_NORTH = "char_north";
-export const CHAR_NORTH_WEST = "char_north_west";
-export const CHAR_WEST = "char_west";
-export const CHAR_SOUTH_WEST = "char_south_west";
-export const CHAR_WALK_SOUTH = "char_walk_south_";
-export const CHAR_WALK_SOUTH_EAST = "char_walk_south_east_";
-export const CHAR_WALK_EAST = "char_walk_east_";
-export const CHAR_WALK_NORTH_EAST = "char_walk_north_east_";
-export const CHAR_WALK_NORTH = "char_walk_north_";
-export const CHAR_WALK_NORTH_WEST = "char_walk_north_west_";
-export const CHAR_WALK_WEST = "char_walk_west_";
-export const CHAR_WALK_SOUTH_WEST = "char_walk_south_west_";
-export const CHAR_PICKUP_SOUTH = "char_pickup_south_";
-
-export const CHAR_TREE = "tree_1";
-
 export const walkPrefixForDirection = (dx: number, dy: number): string => {
-  if (dx > 0 && dy === 0) return CHAR_WALK_EAST;
-  if (dx < 0 && dy === 0) return CHAR_WALK_WEST;
-  if (dx === 0 && dy > 0) return CHAR_WALK_SOUTH;
-  if (dx === 0 && dy < 0) return CHAR_WALK_NORTH;
-  if (dx > 0 && dy > 0) return CHAR_WALK_SOUTH_EAST;
-  if (dx > 0 && dy < 0) return CHAR_WALK_NORTH_EAST;
-  if (dx < 0 && dy > 0) return CHAR_WALK_SOUTH_WEST;
-  if (dx < 0 && dy < 0) return CHAR_WALK_NORTH_WEST;
-  return CHAR_WALK_SOUTH;
+  if (dx > 0 && dy === 0) return CHAR_WALK_EAST_ALIAS;
+  if (dx < 0 && dy === 0) return CHAR_WALK_WEST_ALIAS;
+  if (dx === 0 && dy > 0) return CHAR_WALK_SOUTH_ALIAS;
+  if (dx === 0 && dy < 0) return CHAR_WALK_NORTH_ALIAS;
+  if (dx > 0 && dy > 0) return CHAR_WALK_SOUTH_EAST_ALIAS;
+  if (dx > 0 && dy < 0) return CHAR_WALK_NORTH_EAST_ALIAS;
+  if (dx < 0 && dy > 0) return CHAR_WALK_SOUTH_WEST_ALIAS;
+  if (dx < 0 && dy < 0) return CHAR_WALK_NORTH_WEST_ALIAS;
+  return CHAR_WALK_SOUTH_ALIAS;
 };
 
 export const stillAliasForDirection = (dx: number, dy: number): string => {
-  if (dx > 0 && dy === 0) return CHAR_EAST;
-  if (dx < 0 && dy === 0) return CHAR_WEST;
-  if (dx === 0 && dy > 0) return CHAR_SOUTH;
-  if (dx === 0 && dy < 0) return CHAR_NORTH;
-  if (dx > 0 && dy > 0) return CHAR_SOUTH_EAST;
-  if (dx > 0 && dy < 0) return CHAR_NORTH_EAST;
-  if (dx < 0 && dy > 0) return CHAR_SOUTH_WEST;
-  if (dx < 0 && dy < 0) return CHAR_NORTH_WEST;
-  return CHAR_SOUTH;
+  if (dx > 0 && dy === 0) return CHAR_EAST_ALIAS;
+  if (dx < 0 && dy === 0) return CHAR_WEST_ALIAS;
+  if (dx === 0 && dy > 0) return CHAR_SOUTH_ALIAS;
+  if (dx === 0 && dy < 0) return CHAR_NORTH_ALIAS;
+  if (dx > 0 && dy > 0) return CHAR_SOUTH_EAST_ALIAS;
+  if (dx > 0 && dy < 0) return CHAR_NORTH_EAST_ALIAS;
+  if (dx < 0 && dy > 0) return CHAR_SOUTH_WEST_ALIAS;
+  if (dx < 0 && dy < 0) return CHAR_NORTH_WEST_ALIAS;
+  return CHAR_SOUTH_ALIAS;
 };
 
 const setNearest = (tex: PIXI.Texture) => {
@@ -91,31 +91,35 @@ export const loadGameTextures = async () => {
   };
 
   const stills: [string, string][] = [
-    [CHAR_SOUTH, "rotations/south.png"],
-    [CHAR_SOUTH_EAST, "rotations/south-east.png"],
-    [CHAR_EAST, "rotations/east.png"],
-    [CHAR_NORTH_EAST, "rotations/north-east.png"],
-    [CHAR_NORTH, "rotations/north.png"],
-    [CHAR_NORTH_WEST, "rotations/north-west.png"],
-    [CHAR_WEST, "rotations/west.png"],
-    [CHAR_SOUTH_WEST, "rotations/south-west.png"],
+    [CHAR_SOUTH_ALIAS, "rotations/south.png"],
+    [CHAR_SOUTH_EAST_ALIAS, "rotations/south-east.png"],
+    [CHAR_EAST_ALIAS, "rotations/east.png"],
+    [CHAR_NORTH_EAST_ALIAS, "rotations/north-east.png"],
+    [CHAR_NORTH_ALIAS, "rotations/north.png"],
+    [CHAR_NORTH_WEST_ALIAS, "rotations/north-west.png"],
+    [CHAR_WEST_ALIAS, "rotations/west.png"],
+    [CHAR_SOUTH_WEST_ALIAS, "rotations/south-west.png"],
   ];
 
-  await loadAndCache(CHAR_TREE, "/game/assets/trees/tree_1.png");
+  await loadAndCache(BED_TEXTURE_ALIAS, "/game/assets/beds/bed_tile.png");
+
+  await loadAndCache(TREE_TEXTURE_ALIAS, "/game/assets/trees/tree_1.png");
+
+  await loadAndCache(BARN_TEXTURE_ALIAS, "/game/assets/buildings/barn.png");
 
   await Promise.all(
     stills.map(([alias, file]) => loadAndCache(alias, base + file)),
   );
 
   const walkDirs: [string, string][] = [
-    [CHAR_WALK_SOUTH, "south"],
-    [CHAR_WALK_SOUTH_EAST, "south-east"],
-    [CHAR_WALK_EAST, "east"],
-    [CHAR_WALK_NORTH_EAST, "north-east"],
-    [CHAR_WALK_NORTH, "north"],
-    [CHAR_WALK_NORTH_WEST, "north-west"],
-    [CHAR_WALK_WEST, "west"],
-    [CHAR_WALK_SOUTH_WEST, "south-west"],
+    [CHAR_WALK_SOUTH_ALIAS, "south"],
+    [CHAR_WALK_SOUTH_EAST_ALIAS, "south-east"],
+    [CHAR_WALK_EAST_ALIAS, "east"],
+    [CHAR_WALK_NORTH_EAST_ALIAS, "north-east"],
+    [CHAR_WALK_NORTH_ALIAS, "north"],
+    [CHAR_WALK_NORTH_WEST_ALIAS, "north-west"],
+    [CHAR_WALK_WEST_ALIAS, "west"],
+    [CHAR_WALK_SOUTH_WEST_ALIAS, "south-west"],
   ];
 
   await Promise.all(
@@ -132,7 +136,7 @@ export const loadGameTextures = async () => {
   await Promise.all(
     Array.from({ length: 5 }, (_, i) =>
       loadAndCache(
-        `${CHAR_PICKUP_SOUTH}${i}`,
+        `${CHAR_PICKUP_SOUTH_ALIAS}${i}`,
         `${base}animations/picking-up/south/frame_${String(i).padStart(3, "0")}.png`,
       ),
     ),
