@@ -6,7 +6,7 @@ import { ZOOM } from "./common/configs/game.config";
 import { inBounds, screenToIso } from "./common/helpers/grid.helpers";
 
 export class InputController {
-  private zoom = 1;
+  private zoom = ZOOM.DEFAULT_ZOOM;
   private removeListeners: (() => void) | null = null;
 
   private readonly stage: PIXI.Container;
@@ -27,6 +27,11 @@ export class InputController {
   }
 
   attach(): void {
+    this.world.scale.set(ZOOM.DEFAULT_ZOOM);
+    this.cb.onZoomChange(
+      Math.round((ZOOM.DEFAULT_ZOOM / ZOOM.ZOOM_DISPLAY_SCALE) * 100),
+    );
+
     let isPanning = false;
     let didPan = false;
     const PAN_THRESHOLD = 4;
@@ -86,7 +91,7 @@ export class InputController {
       this.world.scale.set(next);
       this.world.x = mx - wx * next;
       this.world.y = my - wy * next;
-      this.cb.onZoomChange(Math.round(next * 100));
+      this.cb.onZoomChange(Math.round((next / ZOOM.ZOOM_DISPLAY_SCALE) * 100));
     };
 
     this.stage.on("pointermove", (e: PIXI.FederatedPointerEvent) => {

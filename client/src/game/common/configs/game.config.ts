@@ -8,8 +8,10 @@ export const PLAYGROUND = {
 };
 
 export const ZOOM = {
-  MIN_ZOOM: 0.5,
-  MAX_ZOOM: 4,
+  MIN_ZOOM: 1,
+  MAX_ZOOM: 5,
+  DEFAULT_ZOOM: 2.5,
+  ZOOM_DISPLAY_SCALE: 2.5,
 };
 
 export const INITIAL_COINS = 1000;

@@ -83,7 +83,8 @@ export class SceneRenderer {
         sprite.x = sx;
         sprite.y = sy;
         sprite.zIndex = 0;
-        sprite.visible = tile.type === "grass" || tile.type === "tree";
+        sprite.visible =
+          tile.type === "grass" || tile.type === "tree" || tile.type === "barn";
 
         this.world.addChild(sprite);
         this.grassSprites[y][x] = sprite;
@@ -223,7 +224,7 @@ export class SceneRenderer {
         sprite.width = TREE_W;
         sprite.height = TREE_H;
         sprite.alpha = obj.alpha;
-        sprite.zIndex = 2 + obj.sortKey;
+        sprite.zIndex = 2 + obj.sortKey + 0.5;
         sprite.visible = true;
       } else if (obj.kind === "bed") {
         const key = `${obj.x},${obj.y}`;
@@ -285,15 +286,7 @@ export class SceneRenderer {
       } else if (obj.kind === "barn") {
         const key = `${obj.ox},${obj.oy}`;
         nextActiveBarnKeys.add(key);
-        drawBarn(
-          this.world,
-          this.barnSprites,
-          key,
-          obj.ox,
-          obj.oy,
-          obj.alpha,
-          obj.sortKey,
-        );
+        drawBarn(this.world, this.barnSprites, key, obj.ox, obj.oy, obj.alpha);
       }
     }
 
@@ -331,20 +324,22 @@ export class SceneRenderer {
 
     if (!inBounds(hx, hy)) return;
     const { x: sx, y: sy } = isoToScreen(hx, hy);
-    drawHoverHighlight(lp, sx, sy);
 
     const tile = grid[hy][hx];
 
-    if (mode === "bed" && inv.bedInv > 0 && tile.type === "grass") {
-      this.showBedPreview(sx, sy);
-    } else if (mode === "tree" && inv.treeInv > 0 && tile.type === "grass") {
-      drawTree(lp, sx, sy, 0.5);
-    } else if (
-      mode === "barn" &&
-      inv.barnInv > 0 &&
-      canPlaceBarn(grid, hx, hy)
-    ) {
-      this.showBarnPreview(hx, hy);
+    if (mode === "bed" && inv.bedInv > 0) {
+      const canPlace = tile.type === "grass";
+      drawDropHighlight(lp, sx, sy, canPlace);
+      if (canPlace) this.showBedPreview(sx, sy);
+    } else if (mode === "tree" && inv.treeInv > 0) {
+      const canPlace = tile.type === "grass";
+      drawDropHighlight(lp, sx, sy, canPlace);
+      if (canPlace) drawTree(lp, sx, sy, 0.5);
+    } else if (mode === "barn" && inv.barnInv > 0) {
+      this.drawBarnPlacementHighlight(lp, grid, hx, hy);
+      if (canPlaceBarn(grid, hx, hy)) this.showBarnPreview(hx, hy);
+    } else {
+      drawHoverHighlight(lp, sx, sy);
     }
   }
 
@@ -426,6 +421,39 @@ export class SceneRenderer {
     this.barnPreviewSprite = null;
   }
 
+  private drawBarnPlacementHighlight(
+    lp: PIXI.Graphics,
+    grid: GridType,
+    hx: number,
+    hy: number,
+    ignoreOrigin?: { x: number; y: number },
+  ): void {
+    for (let dy = 0; dy < 2; dy++) {
+      for (let dx = 0; dx < 2; dx++) {
+        const tx = hx + dx;
+        const ty = hy + dy;
+        if (!inBounds(tx, ty)) continue;
+
+        const { x: sx, y: sy } = isoToScreen(tx, ty);
+        const tile = grid[ty][tx];
+
+        let canPlace: boolean;
+        if (
+          ignoreOrigin &&
+          tile.type === "barn" &&
+          tile.barnOrigin?.x === ignoreOrigin.x &&
+          tile.barnOrigin?.y === ignoreOrigin.y
+        ) {
+          canPlace = true;
+        } else {
+          canPlace = tile.type === "grass";
+        }
+
+        drawDropHighlight(lp, sx, sy, canPlace);
+      }
+    }
+  }
+
   private showBedPreview(sx: number, sy: number): void {
     const bedTex = getTex(BED_TEXTURE_ALIAS);
     if (!bedTex) return;
@@ -487,26 +515,29 @@ export class SceneRenderer {
 
     if (heldItem) {
       if (!inBounds(hx, hy)) return;
-      const { x: sx, y: sy } = isoToScreen(hx, hy);
-      let canPlace = false;
 
       if (heldItem.type === "barn") {
-        canPlace = canPlaceBarn(grid, hx, hy, {
+        const canPlace = canPlaceBarn(grid, hx, hy, {
           x: heldItem.fromX,
           y: heldItem.fromY,
         });
+        this.drawBarnPlacementHighlight(lp, grid, hx, hy, {
+          x: heldItem.fromX,
+          y: heldItem.fromY,
+        });
+        if (canPlace) this.showBarnPreview(hx, hy);
       } else {
+        const { x: sx, y: sy } = isoToScreen(hx, hy);
         const tile = grid[hy][hx];
-        canPlace =
+        const canPlace =
           tile.type === "grass" ||
           (hx === heldItem.fromX && hy === heldItem.fromY);
+
+        drawDropHighlight(lp, sx, sy, canPlace);
+
+        if (heldItem.type === "bed" && canPlace) this.showBedPreview(sx, sy);
+        if (heldItem.type === "tree" && canPlace) drawTree(lp, sx, sy, 0.5);
       }
-
-      drawDropHighlight(lp, sx, sy, canPlace);
-
-      if (heldItem.type === "bed") this.showBedPreview(sx, sy);
-      if (heldItem.type === "tree") drawTree(lp, sx, sy, 0.5);
-      if (heldItem.type === "barn" && canPlace) this.showBarnPreview(hx, hy);
     } else {
       if (!inBounds(hx, hy)) return;
       const tile = grid[hy][hx];

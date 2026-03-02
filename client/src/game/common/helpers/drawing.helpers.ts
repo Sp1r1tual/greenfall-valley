@@ -213,7 +213,6 @@ export const drawBarn = (
   ox: number,
   oy: number,
   alpha: number,
-  sortKey: number,
 ): void => {
   const barnTex = getTex(BARN_TEXTURE_ALIAS);
   if (!barnTex) return;
@@ -232,7 +231,7 @@ export const drawBarn = (
   barnSprite.width = BARN_W;
   barnSprite.height = BARN_H;
   barnSprite.alpha = alpha;
-  barnSprite.zIndex = 2 + sortKey;
+  barnSprite.zIndex = 2 + (ox + 1) + (oy + 1);
   barnSprite.visible = true;
 };
 
